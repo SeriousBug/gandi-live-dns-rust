@@ -10,3 +10,5 @@ edition = "2021"
 reqwest = "0.11.7"
 toml = "0.5.8"
 serde = { version = "1.0", features = ["derive"] }
+directories = "4.0.1"
+structopt = "0.3.25"
