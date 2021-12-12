@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'gandi-rust-dns-updater'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=gandi-rust-dns-updater",
+                    "--package=gandi-rust-dns-updater"
+                ],
+                "filter": {
+                    "name": "gandi-rust-dns-updater",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'gandi-rust-dns-updater'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=gandi-rust-dns-updater",
+                    "--package=gandi-rust-dns-updater"
+                ],
+                "filter": {
+                    "name": "gandi-rust-dns-updater",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
