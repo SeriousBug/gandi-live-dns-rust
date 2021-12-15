@@ -7,7 +7,8 @@ use crate::opts;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    fqdn: String,
+    pub fqdn: String,
+    pub api_key: String,
 }
 
 pub fn load_config(file: PathBuf) -> Result<Config, Box<dyn Error>> {
