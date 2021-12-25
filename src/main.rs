@@ -1,12 +1,19 @@
+use std::collections::HashMap;
+use crate::config::Config;
 use reqwest::{header, Client, ClientBuilder};
 use std::error::Error;
 use structopt::StructOpt;
 use tokio;
+use futures;
 mod config;
 mod opts;
 
-fn gandi_api(fqdn: &str) -> String {
+fn gandi_api_get(fqdn: &str) -> String {
     return format!("https://api.gandi.net/v5/livedns/domains/{}/records", fqdn);
+}
+
+fn gandi_api_url(fqdn: &str, rrset_name: &str, rrset_type: &str) -> String {
+    return format!(" https://api.gandi.net/v5/livedns/domains/{}/records/{}/{}", fqdn, rrset_name, rrset_type);
 }
 
 fn api_client(api_key: &str) -> Result<Client, Box<dyn Error>> {
@@ -29,13 +36,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let conf_path = config::config_path(&opts);
     println!("Loading config from {:#?}", conf_path);
     let conf = config::load_config(conf_path)?;
-    println!("Checking domain {:#?}", conf.fqdn);
-    let url = gandi_api(&conf.fqdn);
+    config::validate_config(&conf)?;
+
     let client = api_client(&conf.api_key)?;
 
-    let out = client.get(url).send().await?;
-    println!("Output: {:#?}", out);
-    println!("Output: {:#?}", out.json().await?);
+    let ipv4 = String::from("173.89.215.91");
+    let ipv6 = String::from("2603:6011:be07:302:79f4:50dd:6abe:be38");
+
+    let mut results = Vec::new();
+
+    for entry in &conf.entry {
+        for entry_type in Config::types(entry) {
+            let fqdn = Config::fqdn(&entry, &conf);
+            let url = gandi_api_url(fqdn, entry.name.as_str(), entry_type);
+            let ip = if entry_type.eq("A") { ipv4.as_str() } else { ipv6.as_str() };
+            let mut map = HashMap::new();
+            map.insert("rrset_values", ip);
+            let req = client.put(url).json(&map);
+            let task = tokio::task::spawn(async move {
+                let response = req.send().await?;
+                return (response.status(), response.text().await?);
+            });
+            results.push(task);
+        }
+    }
+    
+    let results = futures::future::try_join_all(results).await?;
+    
+    for (status, body) in results {
+        println!("{} - {}", status, body);
+    }
 
     return Ok(());
 }

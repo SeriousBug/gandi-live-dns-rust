@@ -1,2 +1,26 @@
-fqdn = "my-website.example.com"
+# Set the domain that you want to configure.
+fqdn = "example.com"
+# The API key to use. To get your API key, log in to Gandi, click on your user
+# on the top right and click settings. Then select the "Security" tab, and
+# generate an API key under "Production API Key". Paste the key here.
+#
+# Make sure this file config file is not readable by your user! Anyone who can
+# read this key can change your domain configuration, transfer your domains, or
+# otherwise do things that will cause you to be charged money.
 api_key = "xxxxxxxxxxxxxxxxxxxxxxxx"
+
+# For every domain or subdomain you want to update, create an entry below.
+
+[[entry]]
+# Updates A (IPv4) entry for example.com
+name = "@"
+
+[[entry]]
+# Updates both A (IPv4) and AAA (IPv6) entries for other.example.com
+name = "other"
+types = ["A", "AAA"]
+
+[[entry]]
+# Updates A for some.example.net
+name = "some"
+fqdn = "example.net" # Overrides top level setting
