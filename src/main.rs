@@ -42,13 +42,21 @@ async fn main() -> anyhow::Result<()> {
     let conf = config::load_config(&opts)
         .die_with(|error| format!("Failed to read config file: {}", error));
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
-    println!("Finding out the API address...");
-    let ipv4 = get_ip("https://api.ipify.org").await;
-    let ipv6 = get_ip("https://api6.ipify.org").await;
+    println!("Finding out the IP address...");
+    let ipv4_result = get_ip("https://api.ipify.org").await;
+    let ipv6_result = get_ip("https://api6.ipify.org").await;
+    let ipv4 = ipv4_result.as_ref();
+    let ipv6 = ipv6_result.as_ref();
     println!("Found these:");
-    println!("\tIPv4: {}", ipv4.unwrap_or_else(|error| error.to_string()));
-    println!("\tIPv6: {}", ipv6.unwrap_or_else(|error| error.to_string()));
-
+    match ipv4 {
+        Ok(ip) => println!("\tIPv4: {}", ip),
+        Err(err) => eprintln!("\tIPv4 failed: {}", err),
+    }
+    match ipv4 {
+        Ok(ip) => println!("\tIPv6: {}", ip),
+        Err(err) => eprintln!("\tIPv7 failed: {}", err),
+    }
+    
     let client = api_client(&conf.api_key)?;
     let mut tasks: Vec<JoinHandle<(StatusCode, String)>> = Vec::new();
     println!("Attempting to update DNS entries now");
@@ -58,12 +66,7 @@ async fn main() -> anyhow::Result<()> {
             let fqdn = Config::fqdn(&entry, &conf);
             let url = gandi_api_url(fqdn, entry.name.as_str(), entry_type);
             let ip = match entry_type {
-                "A" => ipv4.unwrap_or_else(|error| {
-                    panic!(
-                        "Need IPv4 address for {} but failed to get it: {}",
-                        fqdn, error
-                    )
-                }),
+                "A" => ipv4.die_with(|error| format!("Needed IPv4: {}", error)),
                 "AAA" => ipv6.unwrap_or_else(|error| {
                     panic!(
                         "Need IPv6 address for {} but failed to get it: {}",
