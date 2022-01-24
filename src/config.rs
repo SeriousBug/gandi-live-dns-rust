@@ -45,20 +45,17 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
         Some(config_path) => load_config_from(&config_path),
         None => {
             let confpath = ProjectDirs::from("me", "kaangenc", "gandi-dynamic-dns")
-                .and_then(|dir| Some(PathBuf::from(dir.config_dir()).join("config.toml")));
-            confpath.as_ref()
+                .and_then(|dir| Some(PathBuf::from(dir.config_dir()).join("config.toml")))
+                .ok_or(anyhow::anyhow!("Can't find config directory"));
+            confpath
                 .and_then(|path| {
-                    Some(load_config_from(path))
-                })
-                .unwrap_or_else(|| {
-                    let path = PathBuf::from(".").join("gandi.toml");
+                    println!("Checking for config: {}", path.to_string_lossy());
                     load_config_from(path)
                 })
                 .or_else(|_| {
-                    match &confpath {
-                        Some(path) => anyhow::bail!("Can't find the config file! Please create {}, or gandi.toml in the current directory.", path.to_string_lossy()),
-                        None => anyhow::bail!("Can't find the config file! Please create gandi.toml in the current directory."),
-                    }
+                    let path = PathBuf::from(".").join("gandi.toml");
+                    println!("Checking for config: {}", path.to_string_lossy());
+                    load_config_from(path)
                 })
         }
     }
@@ -67,7 +64,7 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
 pub fn validate_config(config: &Config) -> anyhow::Result<()> {
     for entry in &config.entry {
         for entry_type in Config::types(&entry) {
-            if entry_type != "A" && entry_type != "AAA" {
+            if entry_type != "A" && entry_type != "AAAA" {
                 anyhow::bail!("Entry {} has invalid type {}", entry.name, entry_type);
             }
         }

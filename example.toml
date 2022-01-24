@@ -18,7 +18,7 @@ name = "@"
 [[entry]]
 # Updates both A (IPv4) and AAA (IPv6) entries for other.example.com
 name = "other"
-types = ["A", "AAA"]
+types = ["A", "AAAA"]
 
 [[entry]]
 # Updates A for some.example.net

@@ -2,7 +2,7 @@ use crate::config::Config;
 use anyhow;
 use futures;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
-use std::{collections::HashMap, process::exit};
+use std::collections::HashMap;
 use structopt::StructOpt;
 use tokio::{self, task::JoinHandle};
 mod config;
@@ -52,9 +52,9 @@ async fn main() -> anyhow::Result<()> {
         Ok(ip) => println!("\tIPv4: {}", ip),
         Err(err) => eprintln!("\tIPv4 failed: {}", err),
     }
-    match ipv4 {
+    match ipv6 {
         Ok(ip) => println!("\tIPv6: {}", ip),
-        Err(err) => eprintln!("\tIPv7 failed: {}", err),
+        Err(err) => eprintln!("\tIPv6 failed: {}", err),
     }
     
     let client = api_client(&conf.api_key)?;
@@ -66,14 +66,11 @@ async fn main() -> anyhow::Result<()> {
             let fqdn = Config::fqdn(&entry, &conf);
             let url = gandi_api_url(fqdn, entry.name.as_str(), entry_type);
             let ip = match entry_type {
-                "A" => ipv4.die_with(|error| format!("Needed IPv4: {}", error)),
-                "AAA" => ipv6.unwrap_or_else(|error| {
-                    panic!(
-                        "Need IPv6 address for {} but failed to get it: {}",
-                        fqdn, error
-                    )
-                }),
-                &_ => panic!("Unexpected entry type {}", entry_type),
+                "A" => {
+                    ipv4.die_with(|error| format!("Needed IPv4 for {}: {}", fqdn, error))
+                },
+                "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {}: {}", fqdn, error)),
+                bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
             };
             let mut map = HashMap::new();
             map.insert("rrset_values", ip);
