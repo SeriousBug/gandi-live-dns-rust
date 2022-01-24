@@ -3,8 +3,6 @@ name = "gandi-rust-dns-updater"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 
 reqwest = { version = "0.11.7", features = ["json"] }
@@ -16,4 +14,5 @@ structopt = "0.3.25"
 tokio = { version = "1.14.0", features = ["full"] }
 futures = "0.3.17"
 anyhow = "1.0"
-die-exit = { git = "https://github.com/SeriousBug/die.git" }
+# TODO: Relies on a yet-unreleased interface. Switch to an actual crate release once available
+die-exit = { git = "https://github.com/Xavientois/die.git", rev = "31d3801f4e21654b0b28430987b1e21fc7728676" }

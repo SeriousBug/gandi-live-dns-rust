@@ -104,7 +104,7 @@ checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 [[package]]
 name = "die-exit"
 version = "0.3.3"
-source = "git+https://github.com/SeriousBug/die.git#b804d9e970e02c7976792bfdc205e6b6dc81f1d4"
+source = "git+https://github.com/Xavientois/die.git?rev=31d3801f4e21654b0b28430987b1e21fc7728676#31d3801f4e21654b0b28430987b1e21fc7728676"
 
 [[package]]
 name = "directories"

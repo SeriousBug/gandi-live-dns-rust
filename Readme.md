@@ -15,3 +15,9 @@ It's a "one-shot" tool that's then orchestrated with a systemd timer or cron.
 - Follow the instructions in the example config to get your API key and put it in the config
 - Follow the examples in the config to set up which entries you want to update
 - Use `cargo run` to build and run the program
+
+> Warning!
+> 
+> This tool does not rate limit itself, or otherwise do anything that limits how often it sends changes to Gandi's servers.
+> It's up to you to use the tool properly and avoid abusing Gandi's servers. The tool is one-shot, so all you have to do is
+> to avoid running it too often.
