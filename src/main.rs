@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
                 bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
             };
             let mut map = HashMap::new();
-            map.insert("rrset_values", ip);
+            map.insert("rrset_values", vec![ip]);
             let req = client.put(url).json(&map);
             let task = tokio::task::spawn(async move {
                 match req.send().await {
