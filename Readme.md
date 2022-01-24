@@ -6,6 +6,12 @@ Thanks to Gandi's [LiveDNS API](https://api.gandi.net/docs/livedns/), this creat
 Inspired by [cavebeat's similar tool](https://github.com/cavebeat/gandi-live-dns),
 which seems to be unmaintained at the time I'm writing this. I decided to rewrite it in Rust as a learning project.
 
+This tool can update both IPv4 and IPv6 addresses for one or more domains and subdomains.
+It's a "one-shot" tool that's then orchestrated with a systemd timer or cron.
+
 ## Usage
 
-- Copy `example.toml` to 
+- Copy `example.toml` to `gandi.toml`
+- Follow the instructions in the example config to get your API key and put it in the config
+- Follow the examples in the config to set up which entries you want to update
+- Use `cargo run` to build and run the program

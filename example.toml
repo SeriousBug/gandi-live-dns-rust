@@ -16,7 +16,7 @@ api_key = "xxxxxxxxxxxxxxxxxxxxxxxx"
 name = "@"
 
 [[entry]]
-# Updates both A (IPv4) and AAA (IPv6) entries for other.example.com
+# Updates both A (IPv4) and AAAA (IPv6) entries for other.example.com
 name = "other"
 types = ["A", "AAAA"]
 
