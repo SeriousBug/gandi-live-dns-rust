@@ -11,10 +11,11 @@ It's a "one-shot" tool that's then orchestrated with a systemd timer or cron.
 
 ## Usage
 
-- Copy `example.toml` to `gandi.toml`
+- Create a file `gandi.toml`, then copy and paste the contents of [`example.toml`](https://raw.githubusercontent.com/SeriousBug/gandi-live-dns-rust/master/example.toml)
 - Follow the instructions in the example config to get your API key and put it in the config
-- Follow the examples in the config to set up which entries you want to update
-- Use `cargo run` to build and run the program
+- Follow the examples in the config to set up the entries you want to update
+- Download and extract the correct binary from the [releases page](https://github.com/SeriousBug/gandi-live-dns-rust/releases) and place it in your `PATH`, or just the current directory
+- Run `gandi-rust-dns-updater` to update your DNS entries
 
 > Warning!
 > 
