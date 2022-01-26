@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 
-reqwest = { version = "0.11.7", features = ["json"] }
+reqwest = { version = "0.11.7", default-features= false, features = ["json", "rustls-tls"] }
 toml = "0.5.8"
 json = "0.12.4"
 serde = { version = "1.0", features = ["derive"] }
