@@ -225,8 +225,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "gandi-rust-dns-updater"
-version = "0.1.0"
+name = "gandi-live-dns"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "die-exit",
