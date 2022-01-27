@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Make sure `cross` is installed.
-# You'll also need `sed`, and a relatively recent version of `tar`.
+# You'll also need `sed`, a relatively recent version of `tar`, and `7z`.
 #
 # This script runs does `sudo docker` to build and push the release to docker.
 # If you have rootless docker set up, remove sudo from this variable.
@@ -9,7 +9,6 @@ DOCKER="sudo docker"
 #
 # Trap errors and interrupts
 set -Eeuo pipefail
-shopt -s extglob
 function handle_sigint() {
   echo "SIGINT, exiting..."
   exit 1
@@ -50,7 +49,11 @@ VERSION=$(sed -nr 's/^version *= *"([0-9.]+)"/\1/p' Cargo.toml)
 for target in "${!TARGETS[@]}"; do
   echo Building "${target}"
   cross build -j $(($(nproc) / 2)) --release --target "${target}"
-  tar -acf "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.tar.xz" target/"${target}"/release/gandi-live-dns?(|.exe)
+  if [[ "${target}" =~ .*"windows".* ]] ; then
+    7z a -tzip "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.zip" target/"${target}"/release/gandi-live-dns.exe 1>/dev/null
+  else
+    tar -acf "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.tar.xz" target/"${target}"/release/gandi-live-dns
+  fi
 done
 
 # Copy files into place so Docker can get them easily
