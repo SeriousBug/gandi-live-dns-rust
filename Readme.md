@@ -11,20 +11,24 @@ program can update both IPv4 and IPv6 addresses for one or more domains and
 subdomains. It's a one-shot tool that's meant to be managed with a systemd timer
 or cron.
 
-Inspired by [cavebeat's similar tool](https://github.com/cavebeat/gandi-live-dns),
-which seems to be unmaintained at the time I'm writing this. I decided to rewrite
-it in Rust as a learning project.
-
 ## Usage
 
 > This tool doesn't rate limit itself at the moment. If you have more than 30
-> entries that need to be updated, the operation may hit rate the limit of Gandi
+> entries that need to be updated, the operation may hit the rate limit of Gandi
 > and fail. You can work around this using multiple config files and waiting at
 > least 1 minute between runs.
 
+### System packages
+
+Packages are available for some linux distributions.
+
+- ArchLinux: [gandi-live-dns-rust on AUR](https://aur.archlinux.org/packages/gandi-live-dns-rust/)
+
+> Contributions to release this for other distributions are welcome!
+
 ### Prebuilt binaries
 
-`gandi-live-dns-rust` provides pre-built binaries with the releases. See the
+`gandi-live-dns` provides pre-built binaries with the releases. See the
 [releases page](https://github.com/SeriousBug/gandi-live-dns-rust/releases) to
 get the latest version. These binaries are statically linked, and provided for
 both Linux and Windows, including ARM architectures for the Linux version.
@@ -38,8 +42,8 @@ Download the latest version from the releases page, extract it from the archive,
 
 ### With docker
 
-`gandi-live-dns-rust` has Docker images available for x86_64, arm64, armv6, and armv7 platforms.
-Follow the steps below to use these images.
+Use the [seriousbug/gandi-live-dns-rust](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) Docker images, which are available for x86_64,
+arm64, armv6, and armv7 platforms. Follow the steps below to use these images.
 
 - Create a file `gandi.toml`, then copy and paste the contents of [`example.toml`](https://raw.githubusercontent.com/SeriousBug/gandi-live-dns-rust/master/example.toml)
 - Follow the instructions in the example config to get your API key and put it in the config
@@ -47,7 +51,7 @@ Follow the steps below to use these images.
 - Run `docker run --rm -it -v $(pwd)/gandi.toml:/gandi.toml:ro seriousbug/gandi-live-dns-rust:latest`
 
 > Docker doesn't [support IPv6](https://docs.docker.com/config/daemon/ipv6/) out
-> of the box. Check the linked page to enable it, or use the native option.
+> of the box. If you need to update IPv6 addresses, check the linked page to enable IPv6 or use the prebuilt binaries directly.
 
 > If you get [errors](https://stackoverflow.com/questions/42248198/how-to-mount-a-single-file-in-a-volume) about not finding the config file, make sure your command
 > has a full path to the config file (`$(pwd)/gandi.toml` part). Otherwise
@@ -59,6 +63,14 @@ The `Packaging` folder contains a Systemd service and timer, which you can use
 to automatically run this tool. By default it will update the IP addresses after
 every boot up, and at least once a day. You can adjust the timer to speed this
 up, but avoid unnecessarily overloading Gandi's servers.
+
+- Place `gandi-live-dns.timer` and `gandi-live-dns.service` into `/etc/systemd/system`
+- Put `gandi-live-dns` binary into `/usr/bin/`
+    - You can also place it in `/usr/local/bin` or some other directory, just make sure to update the path in the service file
+- Create the folder `/etc/gandi-live-dns`, and place your `gandi.toml` into it
+- Create a user for the service: `useradd --system gandi-live-dns --home-dir /etc/gandi-live-dns`
+- Make sure only the service can access the config file: `chown gandi-live-dns: /etc/gandi-live-dns/gandi.toml && chmod 600 /etc/gandi-live-dns/gandi.toml`
+- Enable the timer with `systemctl enable --now gandi-live-dns.timer`
 
 ## Development
 
@@ -79,3 +91,10 @@ Docker with `docker login`. Then follow these steps:
 - Create a release on Github
     - Make sure to create a tag for the release version on `master`
     - Upload the binary archives to the Github release
+
+## Alternatives
+
+- [laur89's Bash based updater](https://github.com/laur89/docker-gandi-dns-update)
+- [ Adam Vigneaux's Bash based updater, with a docker image](https://github.com/AdamVig/gandi-dynamic-dns)
+- [Yago Riveiro's Python based updater](https://github.com/yriveiro/giu)
+- [ Maxime Le Conte des Floris' Go based updater](https://github.com/mlcdf/dyndns)
