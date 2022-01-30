@@ -2,7 +2,7 @@ use structopt::StructOpt;
 
 /// A tool to automatically update DNS entries on Gandi, using it as a dynamic DNS system.
 #[derive(StructOpt, Debug)]
-#[structopt(name = "gandi-dynamic-dns")]
+#[structopt(name = "gandi-live-dns")]
 pub struct Opts {
     /// The path to the configuration file.
     #[structopt(long)]
