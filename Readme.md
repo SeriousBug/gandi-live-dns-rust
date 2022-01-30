@@ -17,12 +17,10 @@ it in Rust as a learning project.
 
 ## Usage
 
-> Warning!
-> 
-> This tool does not rate limit itself, or otherwise do anything that limits how
-> often it sends changes to Gandi's servers. It's up to you to use the tool
-> properly and avoid abusing Gandi's servers. The tool is one-shot, so all you
-> have to do is to avoid running it too often.
+> This tool doesn't rate limit itself at the moment. If you have more than 30
+> entries that need to be updated, the operation may hit rate the limit of Gandi
+> and fail. You can work around this using multiple config files and waiting at
+> least 1 minute between runs.
 
 ### Prebuilt binaries
 
@@ -54,6 +52,13 @@ Follow the steps below to use these images.
 > If you get [errors](https://stackoverflow.com/questions/42248198/how-to-mount-a-single-file-in-a-volume) about not finding the config file, make sure your command
 > has a full path to the config file (`$(pwd)/gandi.toml` part). Otherwise
 > Docker will create a directory.
+
+## Automation
+
+The `Packaging` folder contains a Systemd service and timer, which you can use
+to automatically run this tool. By default it will update the IP addresses after
+every boot up, and at least once a day. You can adjust the timer to speed this
+up, but avoid unnecessarily overloading Gandi's servers.
 
 ## Development
 

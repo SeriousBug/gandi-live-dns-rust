@@ -1,0 +1,11 @@
+[Unit]
+Description=Automatically updates your IP adress with Gandi LiveDNS.
+Wants=network-online.target
+
+[Timer]
+OnBootSec=1s
+OnCalendar=daily
+RandomizedDelaySec=10s
+
+[Install]
+WantedBy=timers.target

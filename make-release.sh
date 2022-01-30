@@ -7,6 +7,7 @@
 # If you have rootless docker set up, remove sudo from this variable.
 DOCKER="sudo docker"
 #
+shopt -s extglob
 # Trap errors and interrupts
 set -Eeuo pipefail
 function handle_sigint() {
@@ -50,11 +51,17 @@ for target in "${!TARGETS[@]}"; do
   echo Building "${target}"
   cross build -j $(($(nproc) / 2)) --release --target "${target}"
   if [[ "${target}" =~ .*"windows".* ]] ; then
-    7z a -tzip "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.zip" target/"${target}"/release/gandi-live-dns.exe 1>/dev/null
+    zip -j "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.zip" target/"${target}"/release/gandi-live-dns.exe 1>/dev/null
   else
-    tar -acf "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.tar.xz" target/"${target}"/release/gandi-live-dns
+    tar -acf "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.tar.xz" -C "target/${target}/release/" "gandi-live-dns"
   fi
 done
+
+if [[ "$1" = "--no-docker" ]] ; then
+  echo "Exiting without releasing to docker"
+  exit 0
+fi
+
 
 # Copy files into place so Docker can get them easily
 cd Docker

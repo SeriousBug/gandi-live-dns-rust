@@ -1,0 +1,14 @@
+[Unit]
+Description=Automatically updates your IP adress with Gandi LiveDNS.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/gandi-live-dns
+User=gandi-live-dns
+Group=gandi-live-dns
+WorkingDirectory=/etc/gandi-live-dns/
+
+[Install]
+WantedBy=multi-user.target
