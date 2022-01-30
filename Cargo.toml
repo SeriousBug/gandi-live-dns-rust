@@ -4,7 +4,7 @@ version = "1.0.1"
 edition = "2021"
 
 [profile.release]
-strip = true
+strip = "symbols"
 lto = true
 
 [dependencies]
