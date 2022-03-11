@@ -85,12 +85,14 @@ To make a release, first set up `cross` and `docker`. Make sure you log into
 Docker with `docker login`. Then follow these steps:
 
 - bump up the version in `Cargo.toml` according to [semver](https://semver.org/)
+    - commit and push the changes
 - run `./make-release.sh`
     > This will build binaries, then package them into archives, as well as
     > build and upload docker images.
 - Create a release on Github
     - Make sure to create a tag for the release version on `master`
     - Upload the binary archives to the Github release
+- Update the AUR version manually
 
 ## Alternatives
 

@@ -57,7 +57,7 @@ for target in "${!TARGETS[@]}"; do
   fi
 done
 
-if [[ "$1" = "--no-docker" ]] ; then
+if [[ "$#" -ge 2 && "$1" = "--no-docker" ]] ; then
   echo "Exiting without releasing to docker"
   exit 0
 fi
