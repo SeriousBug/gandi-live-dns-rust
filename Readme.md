@@ -13,10 +13,10 @@ or cron.
 
 ## Usage
 
-> This tool doesn't rate limit itself at the moment. If you have more than 30
-> entries that need to be updated, the operation may hit the rate limit of Gandi
-> and fail. You can work around this using multiple config files and waiting at
-> least 1 minute between runs.
+The Gandi Live DNS API is rate limited at 30 requests per minute. This program
+respects this rate limit: if you have more than 30 domains to update, the
+program will pause and wait for a minute, plus a random delay to ensure it
+doesn't hit the rate limit.
 
 ### System packages
 
