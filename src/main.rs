@@ -2,12 +2,19 @@ use crate::config::Config;
 use anyhow;
 use futures;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
-use std::collections::HashMap;
+use std::{collections::HashMap, num::NonZeroU32, sync::Arc, time::Duration};
 use structopt::StructOpt;
 use tokio::{self, task::JoinHandle};
 mod config;
 mod opts;
 use die_exit::*;
+
+use governor;
+
+/// 30 requests per minute, see https://api.gandi.net/docs/reference/
+const GANDI_RATE_LIMIT: u32 = 30;
+/// If we hit the rate limit, wait up to this many seconds before next attempt
+const GANDI_DELAY_JITTER: u64 = 20;
 
 fn gandi_api_url(fqdn: &str, rrset_name: &str, rrset_type: &str) -> String {
     return format!(
@@ -56,26 +63,33 @@ async fn main() -> anyhow::Result<()> {
         Ok(ip) => println!("\tIPv6: {}", ip),
         Err(err) => eprintln!("\tIPv6 failed: {}", err),
     }
-    
+
     let client = api_client(&conf.api_key)?;
     let mut tasks: Vec<JoinHandle<(StatusCode, String)>> = Vec::new();
     println!("Attempting to update DNS entries now");
 
+    let governor = Arc::new(governor::RateLimiter::direct(governor::Quota::per_minute(
+        NonZeroU32::new(GANDI_RATE_LIMIT).die("Governor rate is 0"),
+    )));
+    let retry_jitter =
+        governor::Jitter::new(Duration::ZERO, Duration::from_secs(GANDI_DELAY_JITTER));
+
     for entry in &conf.entry {
         for entry_type in Config::types(entry) {
-            let fqdn = Config::fqdn(&entry, &conf);
-            let url = gandi_api_url(fqdn, entry.name.as_str(), entry_type);
+            let fqdn = Config::fqdn(&entry, &conf).to_string();
+            let url = gandi_api_url(&fqdn, entry.name.as_str(), entry_type);
             let ip = match entry_type {
-                "A" => {
-                    ipv4.die_with(|error| format!("Needed IPv4 for {}: {}", fqdn, error))
-                },
+                "A" => ipv4.die_with(|error| format!("Needed IPv4 for {}: {}", fqdn, error)),
                 "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {}: {}", fqdn, error)),
                 bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
             };
             let mut map = HashMap::new();
             map.insert("rrset_values", vec![ip]);
             let req = client.put(url).json(&map);
+            let task_governor = governor.clone();
             let task = tokio::task::spawn(async move {
+                task_governor.until_ready_with_jitter(retry_jitter).await;
+                println!("Updating {}", &fqdn);
                 match req.send().await {
                     Ok(response) => (
                         response.status(),
