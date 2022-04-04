@@ -21,3 +21,6 @@ anyhow = "1.0"
 governor = "0.4"
 # TODO: Relies on a yet-unreleased interface. Switch to an actual crate release once available
 die-exit = { git = "https://github.com/Xavientois/die.git", rev = "31d3801f4e21654b0b28430987b1e21fc7728676" }
+thiserror = "1.0.30"
+tracing = "0.1"
+tracing-subscriber = "0.3"
