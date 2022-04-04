@@ -49,12 +49,12 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
                 .ok_or(anyhow::anyhow!("Can't find config directory"));
             confpath
                 .and_then(|path| {
-                    println!("Checking for config: {}", path.to_string_lossy());
+                    tracing::debug!("Checking for config: {}", path.to_string_lossy());
                     load_config_from(path)
                 })
                 .or_else(|_| {
                     let path = PathBuf::from(".").join("gandi.toml");
-                    println!("Checking for config: {}", path.to_string_lossy());
+                    tracing::debug!("Checking for config: {}", path.to_string_lossy());
                     load_config_from(path)
                 })
         }

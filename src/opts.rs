@@ -50,6 +50,9 @@ pub struct Opts {
     #[clap(long)]
     pub config: Option<String>,
 
+    /// Limit how much information gets printed out. Set to `all` to disable all
+    /// output (other than errors), or `domains` to disable printing the domain
+    /// names that were updated.
     #[clap(long)]
     pub silent: Option<SilenceLevel>,
 }

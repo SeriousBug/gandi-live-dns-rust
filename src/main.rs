@@ -2,14 +2,15 @@ use crate::config::Config;
 use anyhow;
 use clap::Parser;
 use futures;
+use opts::SilenceLevel;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use std::{collections::HashMap, num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::{self, task::JoinHandle};
+use tracing::metadata::LevelFilter;
 mod config;
 mod opts;
 use die_exit::*;
 use governor;
-
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
 const GANDI_RATE_LIMIT: u32 = 30;
@@ -43,30 +44,55 @@ async fn get_ip(api_url: &str) -> anyhow::Result<String> {
     Ok(text)
 }
 
+/// Sets up the logging based on the command line options given.
+///
+/// As a reminder, the use the following level should be used when printing
+/// output:
+/// - error: Error messages
+/// - info: Regular operational messages
+/// - debug: Any messages that contain private information, like domain names
+///
+fn setup_logging(level: Option<SilenceLevel>) {
+    tracing_subscriber::fmt()
+        .with_level(false)
+        .with_target(false)
+        .with_thread_ids(false)
+        .with_thread_names(false)
+        .with_max_level(match level {
+            Some(SilenceLevel::All) => LevelFilter::WARN,
+            Some(SilenceLevel::Domains) => LevelFilter::INFO,
+            None => LevelFilter::DEBUG,
+        })
+        .init();
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let opts = opts::Opts::parse();
+    setup_logging(opts.silent);
+    // setup_logging needs to come first, before anything else
+
     let conf = config::load_config(&opts)
         .die_with(|error| format!("Failed to read config file: {}", error));
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
-    println!("Finding out the IP address...");
+    tracing::info!("Finding out the IP address...");
     let ipv4_result = get_ip("https://api.ipify.org").await;
     let ipv6_result = get_ip("https://api6.ipify.org").await;
     let ipv4 = ipv4_result.as_ref();
     let ipv6 = ipv6_result.as_ref();
-    println!("Found these:");
+    tracing::debug!("Found these:");
     match ipv4 {
-        Ok(ip) => println!("\tIPv4: {}", ip),
-        Err(err) => eprintln!("\tIPv4 failed: {}", err),
+        Ok(ip) => tracing::debug!("\tIPv4: {}", ip),
+        Err(err) => tracing::error!("\tIPv4 failed: {}", err),
     }
     match ipv6 {
-        Ok(ip) => println!("\tIPv6: {}", ip),
-        Err(err) => eprintln!("\tIPv6 failed: {}", err),
+        Ok(ip) => tracing::debug!("\tIPv6: {}", ip),
+        Err(err) => tracing::error!("\tIPv6 failed: {}", err),
     }
 
     let client = api_client(&conf.api_key)?;
     let mut tasks: Vec<JoinHandle<(StatusCode, String)>> = Vec::new();
-    println!("Attempting to update DNS entries now");
+    tracing::info!("Attempting to update DNS entries now");
 
     let governor = Arc::new(governor::RateLimiter::direct(governor::Quota::per_minute(
         NonZeroU32::new(GANDI_RATE_LIMIT).die("Governor rate is 0"),
@@ -89,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
             let task_governor = governor.clone();
             let task = tokio::task::spawn(async move {
                 task_governor.until_ready_with_jitter(retry_jitter).await;
-                println!("Updating {}", &fqdn);
+                tracing::debug!("Updating {}", &fqdn);
                 match req.send().await {
                     Ok(response) => (
                         response.status(),
@@ -106,10 +132,11 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let results = futures::future::try_join_all(tasks).await?;
-    println!("Updates done for {} entries", results.len());
-    for (status, body) in results {
-        println!("{} - {}", status, body);
-    }
+    tracing::info!("Updates done for {} entries", results.len());
+    results
+        .into_iter()
+        .filter(|(status, _)| !StatusCode::is_success(&status))
+        .for_each(|(status, body)| tracing::warn!("Error {}: {}", status, body));
 
     return Ok(());
 }
