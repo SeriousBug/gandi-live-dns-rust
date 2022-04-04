@@ -9,15 +9,15 @@ lto = true
 
 [dependencies]
 
-reqwest = { version = "0.11.7", default-features= false, features = ["json", "rustls-tls"] }
-toml = "0.5.8"
-json = "0.12.4"
+reqwest = { version = "0.11", default-features= false, features = ["json", "rustls-tls"] }
+toml = "0.5"
+json = "0.12"
 serde = { version = "1.0", features = ["derive"] }
-directories = "4.0.1"
-structopt = "0.3.25"
-tokio = { version = "1.14.0", features = ["full"] }
-futures = "0.3.17"
+directories = "4.0"
+clap = { version = "3.1", features = ["derive", "cargo", "unicode", "wrap_help"]}
+tokio = { version = "1.17", features = ["full"] }
+futures = "0.3"
 anyhow = "1.0"
-governor = "0.4.2"
+governor = "0.4"
 # TODO: Relies on a yet-unreleased interface. Switch to an actual crate release once available
 die-exit = { git = "https://github.com/Xavientois/die.git", rev = "31d3801f4e21654b0b28430987b1e21fc7728676" }

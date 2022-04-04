@@ -1,15 +1,15 @@
 use crate::config::Config;
 use anyhow;
+use clap::Parser;
 use futures;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use std::{collections::HashMap, num::NonZeroU32, sync::Arc, time::Duration};
-use structopt::StructOpt;
 use tokio::{self, task::JoinHandle};
 mod config;
 mod opts;
 use die_exit::*;
-
 use governor;
+
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
 const GANDI_RATE_LIMIT: u32 = 30;
@@ -45,7 +45,7 @@ async fn get_ip(api_url: &str) -> anyhow::Result<String> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let opts = opts::Opts::from_args();
+    let opts = opts::Opts::parse();
     let conf = config::load_config(&opts)
         .die_with(|error| format!("Failed to read config file: {}", error));
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
