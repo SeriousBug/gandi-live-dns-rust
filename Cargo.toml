@@ -16,7 +16,7 @@ json = "0.12"
 serde = { version = "1.0", features = ["derive"] }
 directories = "4.0"
 clap = { version = "3.1", features = ["derive", "cargo", "unicode", "wrap_help"]}
-tokio = { version = "1.17", features = ["full"] }
+tokio = { version = "1.18", features = ["full"] }
 futures = "0.3"
 anyhow = "1.0"
 governor = "0.4"
