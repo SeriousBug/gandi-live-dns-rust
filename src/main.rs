@@ -43,7 +43,7 @@ async fn get_ip(api_url: &str) -> anyhow::Result<String> {
     Ok(text)
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let opts = opts::Opts::parse();
     let conf = config::load_config(&opts)
@@ -87,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
             map.insert("rrset_values", vec![ip]);
             let req = client.put(url).json(&map);
             let task_governor = governor.clone();
-            let task = tokio::task::spawn(async move {
+            let task = tokio::task::spawn_local(async move {
                 task_governor.until_ready_with_jitter(retry_jitter).await;
                 println!("Updating {}", &fqdn);
                 match req.send().await {
