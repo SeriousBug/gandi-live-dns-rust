@@ -3,7 +3,8 @@ use anyhow;
 use clap::Parser;
 use futures;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
-use std::{collections::HashMap, num::NonZeroU32, sync::Arc, time::Duration};
+use serde::Serialize;
+use std::{num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::{self, task::JoinHandle};
 mod config;
 mod opts;
@@ -41,6 +42,12 @@ async fn get_ip(api_url: &str) -> anyhow::Result<String> {
     let response = reqwest::get(api_url).await?;
     let text = response.text().await?;
     Ok(text)
+}
+
+#[derive(Serialize)]
+pub struct APIPayload {
+    pub rrset_values: Vec<String>,
+    pub rrset_ttl: u32,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -83,9 +90,11 @@ async fn main() -> anyhow::Result<()> {
                 "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {}: {}", fqdn, error)),
                 bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
             };
-            let mut map = HashMap::new();
-            map.insert("rrset_values", vec![ip]);
-            let req = client.put(url).json(&map);
+            let payload = APIPayload {
+                rrset_values: vec![ip.to_string()],
+                rrset_ttl: Config::ttl(&entry, &conf),
+            };
+            let req = client.put(url).json(&payload);
             let task_governor = governor.clone();
             let task = tokio::task::spawn_local(async move {
                 task_governor.until_ready_with_jitter(retry_jitter).await;
