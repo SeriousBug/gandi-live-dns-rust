@@ -96,7 +96,7 @@ async fn main() -> anyhow::Result<()> {
             };
             let req = client.put(url).json(&payload);
             let task_governor = governor.clone();
-            let task = tokio::task::spawn_local(async move {
+            let task = tokio::task::spawn(async move {
                 task_governor.until_ready_with_jitter(retry_jitter).await;
                 println!("Updating {}", &fqdn);
                 match req.send().await {
