@@ -1,4 +1,4 @@
-use clap::{Parser, ArgEnum};
+use clap::Parser;
 
 /// A tool to automatically update DNS entries on Gandi, using it as a dynamic DNS system.
 #[derive(Parser, Debug)]

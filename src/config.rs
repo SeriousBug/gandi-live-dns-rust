@@ -10,28 +10,37 @@ pub struct Entry {
     pub name: String,
     types: Option<Vec<String>>,
     fqdn: Option<String>,
+    ttl: Option<u32>,
 }
+
+fn default_ttl() -> u32 { return 300; }
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
     fqdn: String,
     pub api_key: String,
     pub entry: Vec<Entry>,
+    #[serde(default = "default_ttl")]
+    pub ttl: u32,
 }
 
 const DEFAULT_TYPES: &'static [&'static str] = &["A"];
 
 impl Config {
     pub fn fqdn<'c>(entry: &'c Entry, config: &'c Config) -> &'c str {
-        return entry.fqdn.as_ref().unwrap_or(&config.fqdn).as_str();
+        entry.fqdn.as_ref().unwrap_or(&config.fqdn).as_str()
+    }
+
+    pub fn ttl(entry: &Entry, config: &Config) -> u32 {
+        entry.ttl.unwrap_or(config.ttl)
     }
 
     pub fn types<'e>(entry: &'e Entry) -> Vec<&'e str> {
-        return entry
+        entry
             .types
             .as_ref()
             .and_then(|ts| Some(ts.iter().map(|t| t.as_str()).collect()))
-            .unwrap_or_else(|| DEFAULT_TYPES.to_vec());
+            .unwrap_or_else(|| DEFAULT_TYPES.to_vec())
     }
 }
 

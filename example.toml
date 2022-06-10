@@ -9,6 +9,12 @@ fqdn = "example.com"
 # otherwise do things that will cause you to be charged money.
 api_key = "xxxxxxxxxxxxxxxxxxxxxxxx"
 
+# The Time To Live value to be used by entries. This can be an integer between
+# 300 and 2592000. It is 300 by default. This is roughly how quickly DNS changes
+# will propagate when updated, you should keep this the minimum so changes to
+# your IP address propagate quickly.
+ttl = 300
+
 # For every domain or subdomain you want to update, create an entry below.
 
 [[entry]]
@@ -24,3 +30,5 @@ types = ["A", "AAAA"]
 # Updates A for some.example.net
 name = "some"
 fqdn = "example.net" # Overrides top level setting
+# Individual entries can override the global TTL
+ttl = 600
