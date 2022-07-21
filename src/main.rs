@@ -96,9 +96,10 @@ async fn main() -> anyhow::Result<()> {
             };
             let req = client.put(url).json(&payload);
             let task_governor = governor.clone();
+            let entry_type = entry_type.to_string();
             let task = tokio::task::spawn(async move {
                 task_governor.until_ready_with_jitter(retry_jitter).await;
-                println!("Updating {}", &fqdn);
+                println!("Updating {} record for {}", entry_type, &fqdn);
                 match req.send().await {
                     Ok(response) => (
                         response.status(),
