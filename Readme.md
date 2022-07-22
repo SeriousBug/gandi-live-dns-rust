@@ -1,5 +1,7 @@
 ## gandi-live-dns-rust
 
+[![Releases](https://img.shields.io/github/v/release/SeriousBug/gandi-live-dns-rust?include_prereleases)](https://github.com/SeriousBug/gandi-live-dns-rust/releases) [![Docker Image Size](https://img.shields.io/docker/image-size/seriousbug/gandi-live-dns-rust)](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) [![MIT license](https://img.shields.io/github/license/SeriousBug/gandi-live-dns-rust)](https://github.com/SeriousBug/gandi-live-dns-rust/blob/master/LICENSE.txt)
+
 A program that can set the IP addresses for configured DNS entries in
 [Gandi](https://gandi.net)'s domain configuration. Thanks to Gandi's
 [LiveDNS API](https://api.gandi.net/docs/livedns/),
