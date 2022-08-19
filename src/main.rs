@@ -123,3 +123,32 @@ async fn main() -> anyhow::Result<()> {
 
     return Ok(());
 }
+
+#[cfg(test)]
+mod tests {
+    use httpmock::MockServer;
+    use serde_json::json;
+
+    #[test]
+    fn create_repo_success_test() {
+        // Arrange
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method("POST")
+                .path("/user/repos")
+                .header("Authorization", "token TOKEN")
+                .header("Content-Type", "application/json");
+            then.status(201)
+                .json_body(json!({ "html_url": "http://example.com" }));
+        });
+        let client = GithubClient::new("TOKEN", &server.base_url());
+
+        // Act
+        let result = client.create_repo("myRepo");
+
+        // Assert
+        mock.assert();
+        assert_eq!(result.is_ok(), true);
+        assert_eq!(result.unwrap(), "http://example.com");
+    }
+}
