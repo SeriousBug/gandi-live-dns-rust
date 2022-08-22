@@ -1,28 +1,25 @@
 use crate::config::Config;
+use crate::gandi::GandiAPI;
+use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
 use anyhow;
 use clap::Parser;
 use futures;
+use opts::Opts;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::{self, task::JoinHandle};
 mod config;
+mod gandi;
+mod ip_source;
 mod opts;
 use die_exit::*;
 use governor;
-
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
 const GANDI_RATE_LIMIT: u32 = 30;
 /// If we hit the rate limit, wait up to this many seconds before next attempt
 const GANDI_DELAY_JITTER: u64 = 20;
-
-fn gandi_api_url(fqdn: &str, rrset_name: &str, rrset_type: &str) -> String {
-    return format!(
-        " https://api.gandi.net/v5/livedns/domains/{}/records/{}/{}",
-        fqdn, rrset_name, rrset_type
-    );
-}
 
 fn api_client(api_key: &str) -> anyhow::Result<Client> {
     let client_builder = ClientBuilder::new();
@@ -38,27 +35,19 @@ fn api_client(api_key: &str) -> anyhow::Result<Client> {
     return Ok(client);
 }
 
-async fn get_ip(api_url: &str) -> anyhow::Result<String> {
-    let response = reqwest::get(api_url).await?;
-    let text = response.text().await?;
-    Ok(text)
-}
-
 #[derive(Serialize)]
 pub struct APIPayload {
     pub rrset_values: Vec<String>,
     pub rrset_ttl: u32,
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> anyhow::Result<()> {
-    let opts = opts::Opts::parse();
+async fn run(base_url: &str, opts: Opts) -> anyhow::Result<()> {
     let conf = config::load_config(&opts)
         .die_with(|error| format!("Failed to read config file: {}", error));
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
     println!("Finding out the IP address...");
-    let ipv4_result = get_ip("https://api.ipify.org").await;
-    let ipv6_result = get_ip("https://api6.ipify.org").await;
+    let ipv4_result = IPSourceIpify::get_ipv4().await;
+    let ipv6_result = IPSourceIpify::get_ipv6().await;
     let ipv4 = ipv4_result.as_ref();
     let ipv6 = ipv6_result.as_ref();
     println!("Found these:");
@@ -84,10 +73,16 @@ async fn main() -> anyhow::Result<()> {
     for entry in &conf.entry {
         for entry_type in Config::types(entry) {
             let fqdn = Config::fqdn(&entry, &conf).to_string();
-            let url = gandi_api_url(&fqdn, entry.name.as_str(), entry_type);
+            let url = GandiAPI {
+                fqdn: &fqdn,
+                rrset_name: &entry.name,
+                rrset_type: &entry_type,
+                base_url,
+            }
+            .url();
             let ip = match entry_type {
-                "A" => ipv4.die_with(|error| format!("Needed IPv4 for {}: {}", fqdn, error)),
-                "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {}: {}", fqdn, error)),
+                "A" => ipv4.die_with(|error| format!("Needed IPv4 for {fqdn}: {error}")),
+                "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {fqdn}: {error}")),
                 bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
             };
             let payload = APIPayload {
@@ -121,34 +116,72 @@ async fn main() -> anyhow::Result<()> {
         println!("{} - {}", status, body);
     }
 
-    return Ok(());
+    Ok(())
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> anyhow::Result<()> {
+    let opts = opts::Opts::parse();
+    run("https://api.gandi.net", opts).await
 }
 
 #[cfg(test)]
 mod tests {
-    use httpmock::MockServer;
-    use serde_json::json;
+    use std::env::temp_dir;
 
-    #[test]
-    fn create_repo_success_test() {
-        // Arrange
+    use crate::{ip_source::ip_source::IPSource, opts::Opts, run};
+    use async_trait::async_trait;
+    use httpmock::MockServer;
+    use tokio::fs;
+
+    struct IPSourceMock {}
+
+    #[async_trait]
+    impl IPSource for IPSourceMock {
+        async fn get_ipv4() -> anyhow::Result<String> {
+            Ok("192.168.0.0".to_string())
+        }
+        async fn get_ipv6() -> anyhow::Result<String> {
+            Ok("fe80:0000:0208:74ff:feda:625c".to_string())
+        }
+    }
+
+    #[tokio::test]
+    async fn create_repo_success_test() {
+        let mut temp = temp_dir().join("gandi-live-dns-test");
+        fs::create_dir_all(&temp)
+            .await
+            .expect("Failed to create test dir");
+        temp.push("test.toml");
+        fs::write(
+            &temp,
+            "fqdn = \"example.com\"\napi_key = \"xxx\"\nttl = 300\n[[entry]]\nname =\"@\"\n",
+        )
+        .await
+        .expect("Failed to write test config file");
+        let fqdn = "example.com";
+        let rname = "@";
+        let rtype = "A";
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method("POST")
-                .path("/user/repos")
-                .header("Authorization", "token TOKEN")
-                .header("Content-Type", "application/json");
-            then.status(201)
-                .json_body(json!({ "html_url": "http://example.com" }));
+            when.method("PUT")
+                .path(format!(
+                    "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
+                ))
+                .body_contains("192.168.0.0");
+            then.status(200);
         });
-        let client = GithubClient::new("TOKEN", &server.base_url());
 
-        // Act
-        let result = client.create_repo("myRepo");
+        run(
+            server.base_url().as_str(),
+            Opts {
+                config: Some(temp.to_string_lossy().to_string()),
+            },
+        )
+        .await
+        .expect("Failed when running the update");
 
         // Assert
         mock.assert();
-        assert_eq!(result.is_ok(), true);
-        assert_eq!(result.unwrap(), "http://example.com");
     }
 }

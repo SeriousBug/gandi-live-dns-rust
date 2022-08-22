@@ -3,5 +3,6 @@
         "gandi",
         "rrset",
         "structopt"
-    ]
+    ],
+    "editor.formatOnSave": true
 }
