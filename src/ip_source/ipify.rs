@@ -29,6 +29,7 @@ mod tests {
     use super::IPSourceIpify;
 
     #[tokio::test]
+    #[ignore]
     async fn ipv4_test() {
         let ipv4 = IPSourceIpify::get_ipv4()
             .await
@@ -39,6 +40,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn ipv6_test() {
         let ipv6 = IPSourceIpify::get_ipv6()
             .await

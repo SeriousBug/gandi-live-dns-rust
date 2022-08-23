@@ -37,6 +37,7 @@ mod tests {
     use super::IPSourceIcanhazip;
 
     #[tokio::test]
+    #[ignore]
     async fn ipv4_test() {
         let ipv4 = IPSourceIcanhazip::get_ipv4()
             .await
@@ -47,6 +48,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn ipv6_test() {
         let ipv6 = IPSourceIcanhazip::get_ipv6()
             .await
