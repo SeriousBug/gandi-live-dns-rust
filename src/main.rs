@@ -3,8 +3,9 @@ use crate::gandi::GandiAPI;
 use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
 use anyhow;
 use clap::Parser;
+use config::IPSourceName;
 use futures;
-use opts::Opts;
+use ip_source::icanhazip::IPSourceIcanhazip;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
@@ -41,9 +42,7 @@ pub struct APIPayload {
     pub rrset_ttl: u32,
 }
 
-async fn run<IP: IPSource>(base_url: &str, opts: Opts) -> anyhow::Result<()> {
-    let conf = config::load_config(&opts)
-        .die_with(|error| format!("Failed to read config file: {}", error));
+async fn run<IP: IPSource>(base_url: &str, conf: Config) -> anyhow::Result<()> {
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
     println!("Finding out the IP address...");
     let ipv4_result = IP::get_ipv4().await;
@@ -122,14 +121,20 @@ async fn run<IP: IPSource>(base_url: &str, opts: Opts) -> anyhow::Result<()> {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let opts = opts::Opts::parse();
-    run::<IPSourceIpify>("https://api.gandi.net", opts).await
+    let conf = config::load_config(&opts)
+        .die_with(|error| format!("Failed to read config file: {}", error));
+
+    match conf.ip_source {
+        IPSourceName::Ipify => run::<IPSourceIpify>("https://api.gandi.net", conf).await,
+        IPSourceName::Icanhazip => run::<IPSourceIcanhazip>("https://api.gandi.net", conf).await,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::env::temp_dir;
 
-    use crate::{ip_source::ip_source::IPSource, opts::Opts, run};
+    use crate::{config, ip_source::ip_source::IPSource, opts::Opts, run};
     use async_trait::async_trait;
     use httpmock::MockServer;
     use tokio::fs;
@@ -172,14 +177,13 @@ mod tests {
             then.status(200);
         });
 
-        run::<IPSourceMock>(
-            server.base_url().as_str(),
-            Opts {
-                config: Some(temp.to_string_lossy().to_string()),
-            },
-        )
-        .await
-        .expect("Failed when running the update");
+        let opts = Opts {
+            config: Some(temp.to_string_lossy().to_string()),
+        };
+        let conf = config::load_config(&opts).expect("Failed to load config");
+        run::<IPSourceMock>(server.base_url().as_str(), conf)
+            .await
+            .expect("Failed when running the update");
 
         // Assert
         mock.assert();

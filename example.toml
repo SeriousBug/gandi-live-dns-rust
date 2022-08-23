@@ -15,6 +15,13 @@ api_key = "xxxxxxxxxxxxxxxxxxxxxxxx"
 # your IP address propagate quickly.
 ttl = 300
 
+# Where to query your IP address from. These options are free and unlimited.
+# Ipify is used by default. If you want to change it, uncomment the one you want
+# to use.
+#
+# ip_source = "Ipify"
+# ip_source = "Icanhazip"
+
 # For every domain or subdomain you want to update, create an entry below.
 
 [[entry]]
