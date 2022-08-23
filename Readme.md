@@ -1,6 +1,6 @@
 ## gandi-live-dns-rust
 
-[![Releases](https://img.shields.io/github/v/release/SeriousBug/gandi-live-dns-rust?include_prereleases)](https://github.com/SeriousBug/gandi-live-dns-rust/releases) [![Docker Image Size](https://img.shields.io/docker/image-size/seriousbug/gandi-live-dns-rust)](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) [![MIT license](https://img.shields.io/github/license/SeriousBug/gandi-live-dns-rust)](https://github.com/SeriousBug/gandi-live-dns-rust/blob/master/LICENSE.txt)
+[![tests](https://img.shields.io/github/workflow/status/SeriousBug/gandi-live-dns-rust/test?label=tests)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/test.yml) [![lint checks](https://img.shields.io/github/workflow/status/SeriousBug/gandi-live-dns-rust/lint%20checks?label=lints)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/lint.yml) [![Releases](https://img.shields.io/github/v/release/SeriousBug/gandi-live-dns-rust?include_prereleases)](https://github.com/SeriousBug/gandi-live-dns-rust/releases) [![Docker Image Size](https://img.shields.io/docker/image-size/seriousbug/gandi-live-dns-rust)](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) [![MIT license](https://img.shields.io/github/license/SeriousBug/gandi-live-dns-rust)](https://github.com/SeriousBug/gandi-live-dns-rust/blob/master/LICENSE.txt)
 
 A program that can set the IP addresses for configured DNS entries in
 [Gandi](https://gandi.net)'s domain configuration. Thanks to Gandi's
