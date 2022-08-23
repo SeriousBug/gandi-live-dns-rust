@@ -13,7 +13,9 @@ pub struct Entry {
     ttl: Option<u32>,
 }
 
-fn default_ttl() -> u32 { return 300; }
+fn default_ttl() -> u32 {
+    return 300;
+}
 
 #[derive(Deserialize, Debug)]
 pub struct Config {

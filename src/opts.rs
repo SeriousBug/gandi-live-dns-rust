@@ -7,5 +7,4 @@ pub struct Opts {
     /// The path to the configuration file.
     #[clap(long)]
     pub config: Option<String>,
-
 }
