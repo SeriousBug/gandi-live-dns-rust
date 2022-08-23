@@ -2,3 +2,4 @@
 gandi.toml
 *.tar*
 *.zip
+*.sig
