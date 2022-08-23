@@ -643,6 +643,7 @@ dependencies = [
  "governor",
  "httpmock",
  "json",
+ "regex",
  "reqwest",
  "serde",
  "tokio",
