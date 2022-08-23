@@ -41,13 +41,13 @@ pub struct APIPayload {
     pub rrset_ttl: u32,
 }
 
-async fn run(base_url: &str, opts: Opts) -> anyhow::Result<()> {
+async fn run<IP: IPSource>(base_url: &str, opts: Opts) -> anyhow::Result<()> {
     let conf = config::load_config(&opts)
         .die_with(|error| format!("Failed to read config file: {}", error));
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
     println!("Finding out the IP address...");
-    let ipv4_result = IPSourceIpify::get_ipv4().await;
-    let ipv6_result = IPSourceIpify::get_ipv6().await;
+    let ipv4_result = IP::get_ipv4().await;
+    let ipv6_result = IP::get_ipv6().await;
     let ipv4 = ipv4_result.as_ref();
     let ipv6 = ipv6_result.as_ref();
     println!("Found these:");
@@ -122,7 +122,7 @@ async fn run(base_url: &str, opts: Opts) -> anyhow::Result<()> {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let opts = opts::Opts::parse();
-    run("https://api.gandi.net", opts).await
+    run::<IPSourceIpify>("https://api.gandi.net", opts).await
 }
 
 #[cfg(test)]
@@ -172,7 +172,7 @@ mod tests {
             then.status(200);
         });
 
-        run(
+        run::<IPSourceMock>(
             server.base_url().as_str(),
             Opts {
                 config: Some(temp.to_string_lossy().to_string()),
