@@ -1,6 +1,6 @@
 ## gandi-live-dns-rust
 
-[![tests](https://img.shields.io/github/workflow/status/SeriousBug/gandi-live-dns-rust/test?label=tests)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/test.yml) [![lint checks](https://img.shields.io/github/workflow/status/SeriousBug/gandi-live-dns-rust/lint%20checks?label=lints)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/lint.yml) [![Releases](https://img.shields.io/github/v/release/SeriousBug/gandi-live-dns-rust?include_prereleases)](https://github.com/SeriousBug/gandi-live-dns-rust/releases) [![Docker Image Size](https://img.shields.io/docker/image-size/seriousbug/gandi-live-dns-rust)](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) [![MIT license](https://img.shields.io/github/license/SeriousBug/gandi-live-dns-rust)](https://github.com/SeriousBug/gandi-live-dns-rust/blob/master/LICENSE.txt)
+[![tests](https://img.shields.io/github/workflow/status/SeriousBug/gandi-live-dns-rust/test?label=tests)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/test.yml) [![Test coverage report](https://img.shields.io/codecov/c/github/SeriousBug/gandi-live-dns-rust)](https://codecov.io/gh/SeriousBug/gandi-live-dns-rust) [![lint checks](https://img.shields.io/github/workflow/status/SeriousBug/gandi-live-dns-rust/lint%20checks?label=lints)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/lint.yml) [![Releases](https://img.shields.io/github/v/release/SeriousBug/gandi-live-dns-rust?include_prereleases)](https://github.com/SeriousBug/gandi-live-dns-rust/releases) [![Docker Image Size](https://img.shields.io/docker/image-size/seriousbug/gandi-live-dns-rust)](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) [![MIT license](https://img.shields.io/github/license/SeriousBug/gandi-live-dns-rust)](https://github.com/SeriousBug/gandi-live-dns-rust/blob/master/LICENSE.txt)
 
 A program that can set the IP addresses for configured DNS entries in
 [Gandi](https://gandi.net)'s domain configuration. Thanks to Gandi's
@@ -68,7 +68,7 @@ up, but avoid unnecessarily overloading Gandi's servers.
 
 - Place `gandi-live-dns.timer` and `gandi-live-dns.service` into `/etc/systemd/system`
 - Put `gandi-live-dns` binary into `/usr/bin/`
-    - You can also place it in `/usr/local/bin` or some other directory, just make sure to update the path in the service file
+  - You can also place it in `/usr/local/bin` or some other directory, just make sure to update the path in the service file
 - Create the folder `/etc/gandi-live-dns`, and place your `gandi.toml` into it
 - Create a user for the service: `useradd --system gandi-live-dns --home-dir /etc/gandi-live-dns`
 - Make sure only the service can access the config file: `chown gandi-live-dns: /etc/gandi-live-dns/gandi.toml && chmod 600 /etc/gandi-live-dns/gandi.toml`
@@ -87,13 +87,13 @@ To make a release, first set up `cross` and `docker`. Make sure you log into
 Docker with `docker login`. Then follow these steps:
 
 - bump up the version in `Cargo.toml` according to [semver](https://semver.org/)
-    - commit and push the changes
+  - commit and push the changes
 - run `./make-release.sh`
-    > This will build binaries, then package them into archives, as well as
-    > build and upload docker images.
+  > This will build binaries, then package them into archives, as well as
+  > build and upload docker images.
 - Create a release on Github
-    - Make sure to create a tag for the release version on `master`
-    - Upload the binary archives to the Github release
+  - Make sure to create a tag for the release version on `master`
+  - Upload the binary archives to the Github release
 - Update the AUR version manually
 
 ## Alternatives

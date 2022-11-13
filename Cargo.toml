@@ -1,8 +1,11 @@
 [package]
 name = "gandi-live-dns"
-version = "1.4.0"
+description = "Automatically updates your IP address in Gandi's Live DNS. Makes it possible to use Gandi as a dynamic DNS system."
+version = "1.5.0"
 edition = "2021"
 authors = ["Kaan Barmore-Genç <kaan@bgenc.net>"]
+license = "MIT"
+readme = "Readme.md"
 
 [profile.release]
 strip = "symbols"
