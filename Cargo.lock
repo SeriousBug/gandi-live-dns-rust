@@ -416,9 +416,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "die-exit"
-version = "0.3.3"
-source = "git+https://github.com/Xavientois/die.git?rev=31d3801f4e21654b0b28430987b1e21fc7728676#31d3801f4e21654b0b28430987b1e21fc7728676"
+name = "die-exit-2"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e9ac3d64c794ef4965e2efc9f9eb3c815f40201a25fe47ee19c0801ec428b7c"
 
 [[package]]
 name = "diff"
@@ -665,7 +666,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
- "die-exit",
+ "die-exit-2",
  "directories",
  "futures",
  "governor",

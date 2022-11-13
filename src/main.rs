@@ -14,7 +14,7 @@ mod config;
 mod gandi;
 mod ip_source;
 mod opts;
-use die_exit::*;
+use die_exit_2::*;
 use governor;
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
