@@ -5,10 +5,15 @@ use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
 
+fn default_types() -> Vec<String> {
+    DEFAULT_TYPES.iter().map(|v| v.to_string()).collect()
+}
+
 #[derive(Deserialize, Debug)]
 pub struct Entry {
     pub name: String,
-    types: Option<Vec<String>>,
+    #[serde(default = "default_types")]
+    types: Vec<String>,
     fqdn: Option<String>,
     ttl: Option<u32>,
 }
@@ -54,11 +59,7 @@ impl Config {
     }
 
     pub fn types<'e>(entry: &'e Entry) -> Vec<&'e str> {
-        entry
-            .types
-            .as_ref()
-            .and_then(|ts| Some(ts.iter().map(|t| t.as_str()).collect()))
-            .unwrap_or_else(|| DEFAULT_TYPES.to_vec())
+        entry.types.iter().map(|t| t.as_str()).collect()
     }
 }
 
@@ -68,7 +69,7 @@ fn load_config_from<P: std::convert::AsRef<std::path::Path>>(path: P) -> anyhow:
 }
 
 pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
-    match &opts.config {
+    let mut config = match &opts.config {
         Some(config_path) => load_config_from(&config_path),
         None => {
             let confpath = ProjectDirs::from("me", "kaangenc", "gandi-dynamic-dns")
@@ -85,7 +86,23 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
                     load_config_from(path)
                 })
         }
+    }?;
+    // Filter out any types skipped in CLI opts
+    if opts.skip_ipv4 || opts.skip_ipv6 {
+        config.entry = config
+            .entry
+            .into_iter()
+            .map(|mut entry| {
+                entry.types = entry
+                    .types
+                    .into_iter()
+                    .filter(|v| (v == "A" && !opts.skip_ipv4) || (v == "AAAA" && !opts.skip_ipv6))
+                    .collect();
+                entry
+            })
+            .collect();
     }
+    Ok(config)
 }
 
 pub fn validate_config(config: &Config) -> anyhow::Result<()> {
@@ -118,6 +135,9 @@ api_key = "xxx"
 ttl = 300
 
 [[entry]]
+name = "www"
+
+[[entry]]
 name = "@"
 "#,
         )
@@ -125,14 +145,18 @@ name = "@"
 
         let opts = Opts {
             config: Some(temp.to_string_lossy().to_string()),
+            ..Opts::default()
         };
         let conf = load_config(&opts).expect("Failed to load config file");
 
         assert_eq!(conf.fqdn, "example.com");
         assert_eq!(conf.api_key, "xxx");
         assert_eq!(conf.ttl, 300);
-        assert_eq!(conf.entry.len(), 1);
-        assert_eq!(conf.entry[0].name, "@");
+        assert_eq!(conf.entry.len(), 2);
+        assert_eq!(conf.entry[0].name, "www");
+        assert_eq!(conf.entry[0].types, vec!["A".to_string()]);
+        assert_eq!(conf.entry[1].name, "@");
+        assert_eq!(conf.entry[1].types, vec!["A".to_string()]);
         // default
         assert_eq!(conf.ip_source, IPSourceName::Ipify);
     }
@@ -161,6 +185,7 @@ name = "@"
 
         let opts = Opts {
             config: Some(temp.to_string_lossy().to_string()),
+            ..Opts::default()
         };
         let conf = load_config(&opts).expect("Failed to load config file");
 
@@ -171,5 +196,81 @@ name = "@"
         assert_eq!(conf.entry[0].name, "www");
         assert_eq!(conf.entry[1].name, "@");
         assert_eq!(conf.ip_source, IPSourceName::Icanhazip);
+    }
+
+    #[test]
+    fn load_config_skip_ipv4_with_opts() {
+        let mut temp = temp_dir().join("gandi-live-dns-test");
+        fs::create_dir_all(&temp).expect("Failed to create test dir");
+        temp.push("test-3.toml");
+        fs::write(
+            &temp,
+            r#"
+fqdn = "example.com"
+api_key = "yyy"
+
+[[entry]]
+name = "www"
+types = ["A", "AAAA"]
+
+[[entry]]
+name = "@"
+types = ["A", "AAAA"]
+"#,
+        )
+        .expect("Failed to write test config file");
+
+        let opts = Opts {
+            config: Some(temp.to_string_lossy().to_string()),
+            skip_ipv4: true,
+            ..Opts::default()
+        };
+        let conf = load_config(&opts).expect("Failed to load config file");
+
+        assert_eq!(conf.fqdn, "example.com");
+        assert_eq!(conf.api_key, "yyy");
+        assert_eq!(conf.entry.len(), 2);
+        assert_eq!(conf.entry[0].name, "www");
+        assert_eq!(conf.entry[0].types, vec!["AAAA".to_string()]);
+        assert_eq!(conf.entry[1].name, "@");
+        assert_eq!(conf.entry[1].types, vec!["AAAA".to_string()]);
+    }
+
+    #[test]
+    fn load_config_skip_ipv6_with_opts() {
+        let mut temp = temp_dir().join("gandi-live-dns-test");
+        fs::create_dir_all(&temp).expect("Failed to create test dir");
+        temp.push("test-4.toml");
+        fs::write(
+            &temp,
+            r#"
+fqdn = "example.com"
+api_key = "yyy"
+
+[[entry]]
+name = "www"
+types = ["A", "AAAA"]
+
+[[entry]]
+name = "@"
+types = ["A", "AAAA"]
+"#,
+        )
+        .expect("Failed to write test config file");
+
+        let opts = Opts {
+            config: Some(temp.to_string_lossy().to_string()),
+            skip_ipv6: true,
+            ..Opts::default()
+        };
+        let conf = load_config(&opts).expect("Failed to load config file");
+
+        assert_eq!(conf.fqdn, "example.com");
+        assert_eq!(conf.api_key, "yyy");
+        assert_eq!(conf.entry.len(), 2);
+        assert_eq!(conf.entry[0].name, "www");
+        assert_eq!(conf.entry[0].types, vec!["A".to_string()]);
+        assert_eq!(conf.entry[1].name, "@");
+        assert_eq!(conf.entry[1].types, vec!["A".to_string()]);
     }
 }

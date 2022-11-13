@@ -179,6 +179,7 @@ mod tests {
 
         let opts = Opts {
             config: Some(temp.to_string_lossy().to_string()),
+            ..Opts::default()
         };
         let conf = config::load_config(&opts).expect("Failed to load config");
         run::<IPSourceMock>(server.base_url().as_str(), conf)
