@@ -17,7 +17,7 @@ toml = "0.5"
 json = "0.12"
 serde = { version = "1.0", features = ["derive"] }
 directories = "4.0"
-clap = { version = "3.2", features = [
+clap = { version = "4.0", features = [
   "derive",
   "cargo",
   "unicode",
@@ -26,7 +26,7 @@ clap = { version = "3.2", features = [
 tokio = { version = "1.20", features = ["full"] }
 futures = "0.3"
 anyhow = "1.0"
-governor = "0.4"
+governor = "0.5"
 async-trait = "0.1"
 # TODO: Relies on a yet-unreleased interface. Switch to an actual crate release once available
 die-exit = { git = "https://github.com/Xavientois/die.git", rev = "31d3801f4e21654b0b28430987b1e21fc7728676" }
