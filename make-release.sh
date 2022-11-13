@@ -44,24 +44,23 @@ declare -A DOCKER_TARGETS=(
 )
 
 # Get the version number
-VERSION=$(sed -nr 's/^version *= *"([0-9.]+)"/\1/p' Cargo.toml)
+VERSION=$(sed -nr 's/^version *= *"([0-9.]+)"/\1/p' Cargo.toml | head --lines=1)
 
 # Make the builds
 for target in "${!TARGETS[@]}"; do
   echo Building "${target}"
   cross build -j $(($(nproc) / 2)) --release --target "${target}"
-  if [[ "${target}" =~ .*"windows".* ]] ; then
+  if [[ "${target}" =~ .*"windows".* ]]; then
     zip -j "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.zip" target/"${target}"/release/gandi-live-dns.exe 1>/dev/null
   else
     tar -acf "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.tar.xz" -C "target/${target}/release/" "gandi-live-dns"
   fi
 done
 
-if [[ "$#" -ge 2 && "$1" = "--no-docker" ]] ; then
+if [[ "$#" -ge 2 && "$1" = "--no-docker" ]]; then
   echo "Exiting without releasing to docker"
   exit 0
 fi
-
 
 # Copy files into place so Docker can get them easily
 cd Docker
