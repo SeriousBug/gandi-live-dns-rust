@@ -59,6 +59,12 @@ arm64, armv6, and armv7 platforms. Follow the steps below to use these images.
 > has a full path to the config file (`$(pwd)/gandi.toml` part). Otherwise
 > Docker will create a directory.
 
+### From source
+
+This package is also published on `crates.io` as
+[gandi-live-dns](https://crates.io/crates/gandi-live-dns). If you would like to
+build it from source and you have a working rust install, you can use `cargo install gandi-live-dns` to build and install it.
+
 ## Automation
 
 The `Packaging` folder contains a Systemd service and timer, which you can use
