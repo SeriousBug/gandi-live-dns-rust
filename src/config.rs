@@ -73,7 +73,7 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
         None => {
             let confpath = ProjectDirs::from("me", "kaangenc", "gandi-dynamic-dns")
                 .map(|dir| PathBuf::from(dir.config_dir()).join("config.toml"))
-                .ok_or(anyhow::anyhow!("Can't find config directory"));
+                .ok_or_else(|| anyhow::anyhow!("Can't find config directory"));
             confpath
                 .and_then(|path| {
                     println!("Checking for config: {}", path.to_string_lossy());
