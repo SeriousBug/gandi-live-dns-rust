@@ -72,7 +72,7 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
         Some(config_path) => load_config_from(config_path),
         None => {
             let confpath = ProjectDirs::from("me", "kaangenc", "gandi-dynamic-dns")
-                .and_then(|dir| Some(PathBuf::from(dir.config_dir()).join("config.toml")))
+                .map(|dir| PathBuf::from(dir.config_dir()).join("config.toml"))
                 .ok_or(anyhow::anyhow!("Can't find config directory"));
             confpath
                 .and_then(|path| {
@@ -92,11 +92,9 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
             .entry
             .into_iter()
             .map(|mut entry| {
-                entry.types = entry
+                entry
                     .types
-                    .into_iter()
-                    .filter(|v| (v == "A" && !opts.skip_ipv4) || (v == "AAAA" && !opts.skip_ipv6))
-                    .collect();
+                    .retain(|v| (v == "A" && !opts.skip_ipv4) || (v == "AAAA" && !opts.skip_ipv6));
                 entry
             })
             .collect();
