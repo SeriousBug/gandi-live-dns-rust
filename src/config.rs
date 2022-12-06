@@ -21,7 +21,7 @@ fn default_ttl() -> u32 {
     300
 }
 
-#[derive(Deserialize, PartialEq, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub enum IPSourceName {
     Ipify,
     Icanhazip,
