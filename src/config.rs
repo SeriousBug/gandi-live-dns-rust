@@ -1,5 +1,4 @@
 use crate::opts;
-use anyhow;
 use directories::ProjectDirs;
 use serde::Deserialize;
 use std::fs;

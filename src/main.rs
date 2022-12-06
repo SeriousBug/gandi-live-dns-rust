@@ -1,10 +1,8 @@
 use crate::config::Config;
 use crate::gandi::GandiAPI;
 use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
-use anyhow;
 use clap::Parser;
 use config::IPSourceName;
-use futures;
 use ip_source::icanhazip::IPSourceIcanhazip;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
@@ -15,7 +13,6 @@ mod gandi;
 mod ip_source;
 mod opts;
 use die_exit_2::*;
-use governor;
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
 const GANDI_RATE_LIMIT: u32 = 30;
