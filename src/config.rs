@@ -18,7 +18,7 @@ pub struct Entry {
 }
 
 fn default_ttl() -> u32 {
-    return 300;
+    300
 }
 
 #[derive(Deserialize, PartialEq, Debug)]
@@ -112,7 +112,7 @@ pub fn validate_config(config: &Config) -> anyhow::Result<()> {
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(test)]

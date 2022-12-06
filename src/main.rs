@@ -30,7 +30,7 @@ fn api_client(api_key: &str) -> anyhow::Result<Client> {
     let accept_value = header::HeaderValue::from_static("application/json");
     headers.insert(header::ACCEPT, accept_value);
     let client = client_builder.default_headers(headers).build()?;
-    return Ok(client);
+    Ok(client)
 }
 
 #[derive(Serialize)]
