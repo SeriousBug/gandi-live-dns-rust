@@ -47,7 +47,7 @@ pub struct Config {
     pub ttl: u32,
 }
 
-const DEFAULT_TYPES: &'static [&'static str] = &["A"];
+const DEFAULT_TYPES: &[&str] = &["A"];
 
 impl Config {
     pub fn fqdn<'c>(entry: &'c Entry, config: &'c Config) -> &'c str {
@@ -58,7 +58,7 @@ impl Config {
         entry.ttl.unwrap_or(config.ttl)
     }
 
-    pub fn types<'e>(entry: &'e Entry) -> Vec<&'e str> {
+    pub fn types(entry: &Entry) -> Vec<&str> {
         entry.types.iter().map(|t| t.as_str()).collect()
     }
 }
