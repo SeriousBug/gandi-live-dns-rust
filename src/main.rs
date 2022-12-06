@@ -68,11 +68,11 @@ async fn run<IP: IPSource>(base_url: &str, conf: Config) -> anyhow::Result<()> {
 
     for entry in &conf.entry {
         for entry_type in Config::types(entry) {
-            let fqdn = Config::fqdn(&entry, &conf).to_string();
+            let fqdn = Config::fqdn(entry, &conf).to_string();
             let url = GandiAPI {
                 fqdn: &fqdn,
                 rrset_name: &entry.name,
-                rrset_type: &entry_type,
+                rrset_type: entry_type,
                 base_url,
             }
             .url();
@@ -83,7 +83,7 @@ async fn run<IP: IPSource>(base_url: &str, conf: Config) -> anyhow::Result<()> {
             };
             let payload = APIPayload {
                 rrset_values: vec![ip.to_string()],
-                rrset_ttl: Config::ttl(&entry, &conf),
+                rrset_ttl: Config::ttl(entry, &conf),
             };
             let req = client.put(url).json(&payload);
             let task_governor = governor.clone();

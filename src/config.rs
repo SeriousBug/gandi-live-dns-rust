@@ -69,7 +69,7 @@ fn load_config_from<P: std::convert::AsRef<std::path::Path>>(path: P) -> anyhow:
 
 pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
     let mut config = match &opts.config {
-        Some(config_path) => load_config_from(&config_path),
+        Some(config_path) => load_config_from(config_path),
         None => {
             let confpath = ProjectDirs::from("me", "kaangenc", "gandi-dynamic-dns")
                 .and_then(|dir| Some(PathBuf::from(dir.config_dir()).join("config.toml")))
@@ -106,7 +106,7 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
 
 pub fn validate_config(config: &Config) -> anyhow::Result<()> {
     for entry in &config.entry {
-        for entry_type in Config::types(&entry) {
+        for entry_type in Config::types(entry) {
             if entry_type != "A" && entry_type != "AAAA" {
                 anyhow::bail!("Entry {} has invalid type {}", entry.name, entry_type);
             }
