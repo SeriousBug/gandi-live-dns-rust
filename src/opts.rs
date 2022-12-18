@@ -17,4 +17,9 @@ pub struct Opts {
     /// If enabled, any IPv6 (AAAA) records in the configuration file are ignored.
     #[clap(action, long)]
     pub skip_ipv6: bool,
+    /// Repeat after specified delay
+    ///
+    /// If enabled waits for the given delay between updating DNS records
+    #[clap(long)]
+    pub repeat: Option<u64>,
 }

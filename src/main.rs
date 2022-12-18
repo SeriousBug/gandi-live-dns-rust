@@ -8,6 +8,7 @@ use futures;
 use ip_source::icanhazip::IPSourceIcanhazip;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
+use std::thread;
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::{self, task::JoinHandle};
 mod config;
@@ -42,7 +43,7 @@ pub struct APIPayload {
     pub rrset_ttl: u32,
 }
 
-async fn run<IP: IPSource>(base_url: &str, conf: Config) -> anyhow::Result<()> {
+async fn run<IP: IPSource>(base_url: &str, conf: &Config) -> anyhow::Result<()> {
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
     println!("Finding out the IP address...");
     let ipv4_result = IP::get_ipv4().await;
@@ -124,6 +125,21 @@ async fn main() -> anyhow::Result<()> {
     let conf = config::load_config(&opts)
         .die_with(|error| format!("Failed to read config file: {}", error));
 
+    // run indefinitely if repeat is given
+    if let Some(delay) = opts.repeat {
+        loop {
+            run_dispatch(&conf).await.ok();
+            thread::sleep(Duration::from_secs(delay))
+        }
+    }
+    // otherwise run just once
+    else {
+        run_dispatch(&conf).await?;
+        Ok(())
+    }
+}
+
+async fn run_dispatch(conf: &Config) -> anyhow::Result<()> {
     match conf.ip_source {
         IPSourceName::Ipify => run::<IPSourceIpify>("https://api.gandi.net", conf).await,
         IPSourceName::Icanhazip => run::<IPSourceIcanhazip>("https://api.gandi.net", conf).await,
@@ -182,7 +198,7 @@ mod tests {
             ..Opts::default()
         };
         let conf = config::load_config(&opts).expect("Failed to load config");
-        run::<IPSourceMock>(server.base_url().as_str(), conf)
+        run::<IPSourceMock>(server.base_url().as_str(), &conf)
             .await
             .expect("Failed when running the update");
 
