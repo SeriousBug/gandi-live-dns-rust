@@ -6,9 +6,8 @@ use config::IPSourceName;
 use ip_source::icanhazip::IPSourceIcanhazip;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
-use std::thread;
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
-use tokio::{self, task::JoinHandle};
+use tokio::{self, task::JoinHandle, time::sleep};
 mod config;
 mod gandi;
 mod ip_source;
@@ -41,7 +40,7 @@ pub struct APIPayload {
 }
 
 async fn run<IP: IPSource>(base_url: &str, conf: &Config) -> anyhow::Result<()> {
-    config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
+    config::validate_config(conf).die_with(|error| format!("Invalid config: {}", error));
     println!("Finding out the IP address...");
     let ipv4_result = IP::get_ipv4().await;
     let ipv6_result = IP::get_ipv6().await;
@@ -69,7 +68,7 @@ async fn run<IP: IPSource>(base_url: &str, conf: &Config) -> anyhow::Result<()> 
 
     for entry in &conf.entry {
         for entry_type in Config::types(entry) {
-            let fqdn = Config::fqdn(entry, &conf).to_string();
+            let fqdn = Config::fqdn(entry, conf).to_string();
             let url = GandiAPI {
                 fqdn: &fqdn,
                 rrset_name: &entry.name,
@@ -84,7 +83,7 @@ async fn run<IP: IPSource>(base_url: &str, conf: &Config) -> anyhow::Result<()> 
             };
             let payload = APIPayload {
                 rrset_values: vec![ip.to_string()],
-                rrset_ttl: Config::ttl(entry, &conf),
+                rrset_ttl: Config::ttl(entry, conf),
             };
             let req = client.put(url).json(&payload);
             let task_governor = governor.clone();
@@ -126,7 +125,7 @@ async fn main() -> anyhow::Result<()> {
     if let Some(delay) = opts.repeat {
         loop {
             run_dispatch(&conf).await.ok();
-            thread::sleep(Duration::from_secs(delay))
+            sleep(Duration::from_secs(delay)).await
         }
     }
     // otherwise run just once
