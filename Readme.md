@@ -10,8 +10,8 @@ this creates a dynamic DNS system.
 If you want to host web services but you don't have a static IP address, this
 tool will allow you to keep your domains pointed at the right IP address. This
 program can update both IPv4 and IPv6 addresses for one or more domains and
-subdomains. It's a one-shot tool that's meant to be managed with a systemd timer
-or cron.
+subdomains. It can be used as a one-shot tool managed with a systemd timer
+or cron, or a long-running process that reschedules itself.
 
 ## Usage
 
@@ -66,6 +66,34 @@ This package is also published on `crates.io` as
 build it from source and you have a working rust install, you can use `cargo install gandi-live-dns` to build and install it.
 
 ## Automation
+
+### By running as a background process
+
+`gandi-live-dns` can run as a daemon, a background process, periodically perform
+the IP address updates. To do so, add the `--repeat=<delay-in-seconds>` command
+line option. When given, this tool will not quit after updating your IP address
+and instead will continue to perform periodic updates.
+
+If you are using Docker, you can add this option when starting it:
+
+```bash
+# This will update your IP now, then repeat every 24 hours
+docker run --rm -it -v $(pwd)/gandi.toml:/gandi.toml:ro seriousbug/gandi-live-dns-rust:latest --repeat=86400
+```
+
+Or with a `docker-compose.yml` file, add it in the arguments:
+
+```yml
+  gandi-live-dns:
+    image: seriousbug/gandi-live-dns-rust:latest
+    restart: always
+    volumes:
+      - ./gandi.toml:/gandi.toml:ro
+    # Repeat the update every day
+    command: --repeat=86400
+```
+
+### With a Systemd timer
 
 The `Packaging` folder contains a Systemd service and timer, which you can use
 to automatically run this tool. By default it will update the IP addresses after
