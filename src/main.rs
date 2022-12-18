@@ -6,7 +6,7 @@ use config::IPSourceName;
 use ip_source::icanhazip::IPSourceIcanhazip;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
-use std::thread;
+use tokio::time::sleep;
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::{self, task::JoinHandle};
 mod config;
@@ -126,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
     if let Some(delay) = opts.repeat {
         loop {
             run_dispatch(&conf).await.ok();
-            thread::sleep(Duration::from_secs(delay))
+            sleep(Duration::from_secs(delay)).await
         }
     }
     // otherwise run just once
