@@ -1,5 +1,4 @@
 use crate::opts;
-use anyhow;
 use directories::ProjectDirs;
 use serde::Deserialize;
 use std::fs;
@@ -19,10 +18,10 @@ pub struct Entry {
 }
 
 fn default_ttl() -> u32 {
-    return 300;
+    300
 }
 
-#[derive(Deserialize, PartialEq, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub enum IPSourceName {
     Ipify,
     Icanhazip,
@@ -47,7 +46,7 @@ pub struct Config {
     pub ttl: u32,
 }
 
-const DEFAULT_TYPES: &'static [&'static str] = &["A"];
+const DEFAULT_TYPES: &[&str] = &["A"];
 
 impl Config {
     pub fn fqdn<'c>(entry: &'c Entry, config: &'c Config) -> &'c str {
@@ -58,7 +57,7 @@ impl Config {
         entry.ttl.unwrap_or(config.ttl)
     }
 
-    pub fn types<'e>(entry: &'e Entry) -> Vec<&'e str> {
+    pub fn types(entry: &Entry) -> Vec<&str> {
         entry.types.iter().map(|t| t.as_str()).collect()
     }
 }
@@ -70,11 +69,11 @@ fn load_config_from<P: std::convert::AsRef<std::path::Path>>(path: P) -> anyhow:
 
 pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
     let mut config = match &opts.config {
-        Some(config_path) => load_config_from(&config_path),
+        Some(config_path) => load_config_from(config_path),
         None => {
             let confpath = ProjectDirs::from("me", "kaangenc", "gandi-dynamic-dns")
-                .and_then(|dir| Some(PathBuf::from(dir.config_dir()).join("config.toml")))
-                .ok_or(anyhow::anyhow!("Can't find config directory"));
+                .map(|dir| PathBuf::from(dir.config_dir()).join("config.toml"))
+                .ok_or_else(|| anyhow::anyhow!("Can't find config directory"));
             confpath
                 .and_then(|path| {
                     println!("Checking for config: {}", path.to_string_lossy());
@@ -93,11 +92,9 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
             .entry
             .into_iter()
             .map(|mut entry| {
-                entry.types = entry
+                entry
                     .types
-                    .into_iter()
-                    .filter(|v| (v == "A" && !opts.skip_ipv4) || (v == "AAAA" && !opts.skip_ipv6))
-                    .collect();
+                    .retain(|v| (v == "A" && !opts.skip_ipv4) || (v == "AAAA" && !opts.skip_ipv6));
                 entry
             })
             .collect();
@@ -107,13 +104,13 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
 
 pub fn validate_config(config: &Config) -> anyhow::Result<()> {
     for entry in &config.entry {
-        for entry_type in Config::types(&entry) {
+        for entry_type in Config::types(entry) {
             if entry_type != "A" && entry_type != "AAAA" {
                 anyhow::bail!("Entry {} has invalid type {}", entry.name, entry_type);
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(test)]

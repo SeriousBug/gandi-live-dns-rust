@@ -1,10 +1,8 @@
 use crate::config::Config;
 use crate::gandi::GandiAPI;
 use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
-use anyhow;
 use clap::Parser;
 use config::IPSourceName;
-use futures;
 use ip_source::icanhazip::IPSourceIcanhazip;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
@@ -16,7 +14,6 @@ mod gandi;
 mod ip_source;
 mod opts;
 use die_exit_2::*;
-use governor;
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
 const GANDI_RATE_LIMIT: u32 = 30;
@@ -34,7 +31,7 @@ fn api_client(api_key: &str) -> anyhow::Result<Client> {
     let accept_value = header::HeaderValue::from_static("application/json");
     headers.insert(header::ACCEPT, accept_value);
     let client = client_builder.default_headers(headers).build()?;
-    return Ok(client);
+    Ok(client)
 }
 
 #[derive(Serialize)]
@@ -72,11 +69,11 @@ async fn run<IP: IPSource>(base_url: &str, conf: &Config) -> anyhow::Result<()> 
 
     for entry in &conf.entry {
         for entry_type in Config::types(entry) {
-            let fqdn = Config::fqdn(&entry, &conf).to_string();
+            let fqdn = Config::fqdn(entry, &conf).to_string();
             let url = GandiAPI {
                 fqdn: &fqdn,
                 rrset_name: &entry.name,
-                rrset_type: &entry_type,
+                rrset_type: entry_type,
                 base_url,
             }
             .url();
@@ -87,7 +84,7 @@ async fn run<IP: IPSource>(base_url: &str, conf: &Config) -> anyhow::Result<()> 
             };
             let payload = APIPayload {
                 rrset_values: vec![ip.to_string()],
-                rrset_ttl: Config::ttl(&entry, &conf),
+                rrset_ttl: Config::ttl(entry, &conf),
             };
             let req = client.put(url).json(&payload);
             let task_governor = governor.clone();
