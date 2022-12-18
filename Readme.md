@@ -136,3 +136,14 @@ Docker with `docker login`. Then follow these steps:
 - [ Adam Vigneaux's Bash based updater, with a docker image](https://github.com/AdamVig/gandi-dynamic-dns)
 - [Yago Riveiro's Python based updater](https://github.com/yriveiro/giu)
 - [ Maxime Le Conte des Floris' Go based updater](https://github.com/mlcdf/dyndns)
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
