@@ -1,4 +1,7 @@
 ## gandi-live-dns-rust
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 [![tests](https://img.shields.io/github/actions/workflow/status/SeriousBug/gandi-live-dns-rust/test.yml?label=tests&branch=master)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/test.yml) [![Test coverage report](https://img.shields.io/codecov/c/github/SeriousBug/gandi-live-dns-rust)](https://codecov.io/gh/SeriousBug/gandi-live-dns-rust) [![lint checks](https://img.shields.io/github/actions/workflow/status/SeriousBug/gandi-live-dns-rust/lint.yml?label=lints&branch=master)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/lint.yml) [![Releases](https://img.shields.io/github/v/release/SeriousBug/gandi-live-dns-rust?include_prereleases)](https://github.com/SeriousBug/gandi-live-dns-rust/releases) [![Docker Image Size](https://img.shields.io/docker/image-size/seriousbug/gandi-live-dns-rust)](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) [![MIT license](https://img.shields.io/github/license/SeriousBug/gandi-live-dns-rust)](https://github.com/SeriousBug/gandi-live-dns-rust/blob/master/LICENSE.txt)
 
@@ -140,6 +143,20 @@ Docker with `docker login`. Then follow these steps:
 ## Contributors
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center"><a href="https://github.com/jannikac"><img src="https://avatars.githubusercontent.com/u/21014142?v=4?s=100" width="100px;" alt="jannikac"/><br /><sub><b>jannikac</b></sub></a><br /><a href="https://github.com/SeriousBug/gandi-live-dns-rust/commits?author=jannikac" title="Code">💻</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
 
