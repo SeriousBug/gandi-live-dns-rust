@@ -32,12 +32,12 @@ futures = "0.3"
 anyhow = "1.0"
 governor = "0.5"
 async-trait = "0.1"
-die-exit-2 = "0.4"
+die-exit = "0.4"
 
 [dev-dependencies]
 httpmock = "0.6"
 regex = "1.6"
 
-[dev-dependencies.die-exit-2]
+[dev-dependencies.die-exit]
 version = "0.4"
 features = ["test"]

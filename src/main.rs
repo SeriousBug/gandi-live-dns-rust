@@ -12,7 +12,7 @@ mod config;
 mod gandi;
 mod ip_source;
 mod opts;
-use die_exit_2::*;
+use die_exit::*;
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
 const GANDI_RATE_LIMIT: u32 = 30;

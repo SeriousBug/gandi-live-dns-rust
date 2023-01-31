@@ -407,10 +407,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "die-exit-2"
-version = "0.4.1"
+name = "die-exit"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24f7e250373cb3609a25291e35550e1e90dda0be72abeaefb6830e9b8b8f2bb3"
+checksum = "38c7de4151fc657b3ef1c90aebd13b25d089166f1f8c1d0a7950ebdfe6499f49"
 
 [[package]]
 name = "diff"
@@ -657,7 +657,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
- "die-exit-2",
+ "die-exit",
  "directories",
  "futures",
  "governor",
