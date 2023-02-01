@@ -44,6 +44,8 @@ pub struct Config {
     pub entry: Vec<Entry>,
     #[serde(default = "default_ttl")]
     pub ttl: u32,
+    #[serde(default)]
+    pub always_update: bool,
 }
 
 const DEFAULT_TYPES: &[&str] = &["A"];
@@ -156,6 +158,7 @@ name = "@"
         assert_eq!(conf.entry[1].types, vec!["A".to_string()]);
         // default
         assert_eq!(conf.ip_source, IPSourceName::Ipify);
+        assert_eq!(conf.always_update, false);
     }
 
     #[test]
@@ -170,6 +173,7 @@ fqdn = "example.com"
 api_key = "yyy"
 ttl = 1200
 ip_source = "Icanhazip"
+always_update = true
 
 [[entry]]
 name = "www"
@@ -193,6 +197,7 @@ name = "@"
         assert_eq!(conf.entry[0].name, "www");
         assert_eq!(conf.entry[1].name, "@");
         assert_eq!(conf.ip_source, IPSourceName::Icanhazip);
+        assert_eq!(conf.always_update, true);
     }
 
     #[test]
