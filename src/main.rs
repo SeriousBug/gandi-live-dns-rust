@@ -7,6 +7,7 @@ use ip_source::icanhazip::IPSourceIcanhazip;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
+use tokio::join;
 use tokio::{self, task::JoinHandle, time::sleep};
 mod config;
 mod gandi;
@@ -39,11 +40,10 @@ pub struct APIPayload {
     pub rrset_ttl: u32,
 }
 
-async fn run<IP: IPSource>(base_url: &str, conf: &Config) -> anyhow::Result<()> {
+async fn run(base_url: &str, ip_source: &Box<dyn IPSource>, conf: &Config) -> anyhow::Result<()> {
     config::validate_config(conf).die_with(|error| format!("Invalid config: {}", error));
     println!("Finding out the IP address...");
-    let ipv4_result = IP::get_ipv4().await;
-    let ipv6_result = IP::get_ipv6().await;
+    let (ipv4_result, ipv6_result) = join!(ip_source.get_ipv4(), ip_source.get_ipv6());
     let ipv4 = ipv4_result.as_ref();
     let ipv6 = ipv6_result.as_ref();
     println!("Found these:");
@@ -136,10 +136,11 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn run_dispatch(conf: &Config) -> anyhow::Result<()> {
-    match conf.ip_source {
-        IPSourceName::Ipify => run::<IPSourceIpify>("https://api.gandi.net", conf).await,
-        IPSourceName::Icanhazip => run::<IPSourceIcanhazip>("https://api.gandi.net", conf).await,
-    }
+    let ip_source: Box<dyn IPSource> = match conf.ip_source {
+        IPSourceName::Ipify => Box::new(IPSourceIpify),
+        IPSourceName::Icanhazip => Box::new(IPSourceIcanhazip),
+    };
+    run("https://api.gandi.net", &ip_source, conf).await
 }
 
 #[cfg(test)]
@@ -151,14 +152,14 @@ mod tests {
     use httpmock::MockServer;
     use tokio::fs;
 
-    struct IPSourceMock {}
+    struct IPSourceMock;
 
     #[async_trait]
     impl IPSource for IPSourceMock {
-        async fn get_ipv4() -> anyhow::Result<String> {
+        async fn get_ipv4(&self) -> anyhow::Result<String> {
             Ok("192.168.0.0".to_string())
         }
-        async fn get_ipv6() -> anyhow::Result<String> {
+        async fn get_ipv6(&self) -> anyhow::Result<String> {
             Ok("fe80:0000:0208:74ff:feda:625c".to_string())
         }
     }
@@ -194,7 +195,8 @@ mod tests {
             ..Opts::default()
         };
         let conf = config::load_config(&opts).expect("Failed to load config");
-        run::<IPSourceMock>(server.base_url().as_str(), &conf)
+        let ip_source: Box<dyn IPSource> = Box::new(IPSourceMock);
+        run(server.base_url().as_str(), &ip_source, &conf)
             .await
             .expect("Failed when running the update");
 
