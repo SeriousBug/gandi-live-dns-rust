@@ -43,8 +43,7 @@ pub struct APIPayload {
 async fn run(base_url: &str, ip_source: &Box<dyn IPSource>, conf: &Config) -> anyhow::Result<()> {
     config::validate_config(conf).die_with(|error| format!("Invalid config: {}", error));
     println!("Finding out the IP address...");
-    let ipv4_result = ip_source.get_ipv4().await;
-    let ipv6_result = ip_source.get_ipv6().await;
+    let (ipv4_result, ipv6_result) = join!(ip_source.get_ipv4(), ip_source.get_ipv6());
     let ipv4 = ipv4_result.as_ref();
     let ipv6 = ipv6_result.as_ref();
     println!("Found these:");
