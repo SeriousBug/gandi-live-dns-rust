@@ -1,5 +1,7 @@
-## gandi-live-dns-rust
+## Gandi Live Dns Rust <!-- omit in toc -->
+
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+
 [![Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?label=contributors)](#contributors) <!-- ALL-CONTRIBUTORS-BADGE:END -->
 [![tests](https://img.shields.io/github/actions/workflow/status/SeriousBug/gandi-live-dns-rust/test.yml?label=tests&branch=master)](https://github.com/SeriousBug/gandi-live-dns-rust/actions/workflows/test.yml)
 [![Test coverage report](https://img.shields.io/codecov/c/github/SeriousBug/gandi-live-dns-rust)](https://codecov.io/gh/SeriousBug/gandi-live-dns-rust)
@@ -18,6 +20,23 @@ tool will allow you to keep your domains pointed at the right IP address. This
 program can update both IPv4 and IPv6 addresses for one or more domains and
 subdomains. It can be used as a one-shot tool managed with a systemd timer
 or cron, or a long-running process that reschedules itself.
+
+## Table of Contents <!-- omit in toc -->
+
+- [Usage](#usage)
+  - [System packages](#system-packages)
+  - [Prebuilt binaries](#prebuilt-binaries)
+  - [With docker](#with-docker)
+  - [From source](#from-source)
+- [Automation](#automation)
+  - [By running as a background process](#by-running-as-a-background-process)
+    - [Skipped updates](#skipped-updates)
+  - [With a Systemd timer](#with-a-systemd-timer)
+- [Development](#development)
+  - [Local builds](#local-builds)
+  - [Making a release](#making-a-release)
+- [Alternatives](#alternatives)
+- [Contributors](#contributors)
 
 ## Usage
 
@@ -90,14 +109,22 @@ docker run --rm -it -v $(pwd)/gandi.toml:/gandi.toml:ro seriousbug/gandi-live-dn
 Or with a `docker-compose.yml` file, add it in the arguments:
 
 ```yml
-  gandi-live-dns:
-    image: seriousbug/gandi-live-dns-rust:latest
-    restart: always
-    volumes:
-      - ./gandi.toml:/gandi.toml:ro
-    # Repeat the update every day
-    command: --repeat=86400
+gandi-live-dns:
+  image: seriousbug/gandi-live-dns-rust:latest
+  restart: always
+  volumes:
+    - ./gandi.toml:/gandi.toml:ro
+  # Repeat the update every day
+  command: --repeat=86400
 ```
+
+#### Skipped updates
+
+In background process mode, the tool will avoid sending an update to Gandi if
+your IP address has not changed since the last update. This only works so long
+as the tool continues to run, it will send an update when restarted even if your
+IP address has not changed. You can also override this behavior by adding
+`always_update = true` to the top of your config file.
 
 ### With a Systemd timer
 
