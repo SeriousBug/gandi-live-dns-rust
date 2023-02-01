@@ -4,6 +4,7 @@ use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
 use clap::Parser;
 use config::IPSourceName;
 use ip_source::icanhazip::IPSourceIcanhazip;
+use opts::Opts;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
@@ -40,76 +41,109 @@ pub struct APIPayload {
     pub rrset_ttl: u32,
 }
 
-async fn run(base_url: &str, ip_source: &Box<dyn IPSource>, conf: &Config) -> anyhow::Result<()> {
-    config::validate_config(conf).die_with(|error| format!("Invalid config: {}", error));
-    println!("Finding out the IP address...");
-    let (ipv4_result, ipv6_result) = join!(ip_source.get_ipv4(), ip_source.get_ipv6());
-    let ipv4 = ipv4_result.as_ref();
-    let ipv6 = ipv6_result.as_ref();
-    println!("Found these:");
-    match ipv4 {
-        Ok(ip) => println!("\tIPv4: {}", ip),
-        Err(err) => eprintln!("\tIPv4 failed: {}", err),
-    }
-    match ipv6 {
-        Ok(ip) => println!("\tIPv6: {}", ip),
-        Err(err) => eprintln!("\tIPv6 failed: {}", err),
-    }
+async fn run(
+    base_url: &str,
+    ip_source: &Box<dyn IPSource>,
+    conf: &Config,
+    opts: &Opts,
+) -> anyhow::Result<()> {
+    let mut last_ipv4: Option<String> = None;
+    let mut last_ipv6: Option<String> = None;
 
-    let client = api_client(&conf.api_key)?;
-    let mut tasks: Vec<JoinHandle<(StatusCode, String)>> = Vec::new();
-    println!("Attempting to update DNS entries now");
-
-    let governor = Arc::new(governor::RateLimiter::direct(governor::Quota::per_minute(
-        NonZeroU32::new(GANDI_RATE_LIMIT).die("Governor rate is 0"),
-    )));
-    let retry_jitter =
-        governor::Jitter::new(Duration::ZERO, Duration::from_secs(GANDI_DELAY_JITTER));
-
-    for entry in &conf.entry {
-        for entry_type in Config::types(entry) {
-            let fqdn = Config::fqdn(entry, conf).to_string();
-            let url = GandiAPI {
-                fqdn: &fqdn,
-                rrset_name: &entry.name,
-                rrset_type: entry_type,
-                base_url,
-            }
-            .url();
-            let ip = match entry_type {
-                "A" => ipv4.die_with(|error| format!("Needed IPv4 for {fqdn}: {error}")),
-                "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {fqdn}: {error}")),
-                bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
-            };
-            let payload = APIPayload {
-                rrset_values: vec![ip.to_string()],
-                rrset_ttl: Config::ttl(entry, conf),
-            };
-            let req = client.put(url).json(&payload);
-            let task_governor = governor.clone();
-            let entry_type = entry_type.to_string();
-            let task = tokio::task::spawn(async move {
-                task_governor.until_ready_with_jitter(retry_jitter).await;
-                println!("Updating {} record for {}", entry_type, &fqdn);
-                match req.send().await {
-                    Ok(response) => (
-                        response.status(),
-                        response
-                            .text()
-                            .await
-                            .unwrap_or_else(|error| error.to_string()),
-                    ),
-                    Err(error) => (StatusCode::IM_A_TEAPOT, error.to_string()),
-                }
-            });
-            tasks.push(task);
+    loop {
+        println!("Finding out the IP address...");
+        let (ipv4_result, ipv6_result) = join!(ip_source.get_ipv4(), ip_source.get_ipv6());
+        let ipv4 = ipv4_result.as_ref();
+        let ipv6 = ipv6_result.as_ref();
+        println!("Found these:");
+        match ipv4 {
+            Ok(ip) => println!("\tIPv4: {}", ip),
+            Err(err) => eprintln!("\tIPv4 failed: {}", err),
         }
-    }
+        match ipv6 {
+            Ok(ip) => println!("\tIPv6: {}", ip),
+            Err(err) => eprintln!("\tIPv6 failed: {}", err),
+        }
 
-    let results = futures::future::try_join_all(tasks).await?;
-    println!("Updates done for {} entries", results.len());
-    for (status, body) in results {
-        println!("{} - {}", status, body);
+        let ipv4_same = last_ipv4
+            .as_ref()
+            .map(|p| ipv4.map(|q| p == q).unwrap_or(false))
+            .unwrap_or(false);
+        let ipv6_same = last_ipv6
+            .as_ref()
+            .map(|p| ipv6.map(|q| p == q).unwrap_or(false))
+            .unwrap_or(false);
+
+        last_ipv4 = ipv4.ok().map(|v| v.to_string());
+        last_ipv6 = ipv6.ok().map(|v| v.to_string());
+
+        if !ipv4_same || !ipv6_same || conf.always_update {
+            let client = api_client(&conf.api_key)?;
+            let mut tasks: Vec<JoinHandle<(StatusCode, String)>> = Vec::new();
+            println!("Attempting to update DNS entries now");
+
+            let governor = Arc::new(governor::RateLimiter::direct(governor::Quota::per_minute(
+                NonZeroU32::new(GANDI_RATE_LIMIT).die("Governor rate is 0"),
+            )));
+            let retry_jitter =
+                governor::Jitter::new(Duration::ZERO, Duration::from_secs(GANDI_DELAY_JITTER));
+
+            for entry in &conf.entry {
+                for entry_type in Config::types(entry) {
+                    let fqdn = Config::fqdn(entry, conf).to_string();
+                    let url = GandiAPI {
+                        fqdn: &fqdn,
+                        rrset_name: &entry.name,
+                        rrset_type: entry_type,
+                        base_url,
+                    }
+                    .url();
+                    let ip = match entry_type {
+                        "A" => ipv4.die_with(|error| format!("Needed IPv4 for {fqdn}: {error}")),
+                        "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {fqdn}: {error}")),
+                        bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
+                    };
+                    let payload = APIPayload {
+                        rrset_values: vec![ip.to_string()],
+                        rrset_ttl: Config::ttl(entry, conf),
+                    };
+                    let req = client.put(url).json(&payload);
+                    let task_governor = governor.clone();
+                    let entry_type = entry_type.to_string();
+                    let task = tokio::task::spawn(async move {
+                        task_governor.until_ready_with_jitter(retry_jitter).await;
+                        println!("Updating {} record for {}", entry_type, &fqdn);
+                        match req.send().await {
+                            Ok(response) => (
+                                response.status(),
+                                response
+                                    .text()
+                                    .await
+                                    .unwrap_or_else(|error| error.to_string()),
+                            ),
+                            Err(error) => (StatusCode::IM_A_TEAPOT, error.to_string()),
+                        }
+                    });
+                    tasks.push(task);
+                }
+            }
+
+            let results = futures::future::try_join_all(tasks).await?;
+            println!("Updates done for {} entries", results.len());
+            for (status, body) in results {
+                println!("{} - {}", status, body);
+            }
+        } else {
+            println!("IP address has not changed since last update");
+        }
+
+        if let Some(repeat) = opts.repeat {
+            // If configured to repeat, do so
+            sleep(Duration::from_secs(repeat)).await;
+            continue;
+        }
+        // Otherwise this is one-shot, we should exit now
+        break;
     }
 
     Ok(())
@@ -121,36 +155,23 @@ async fn main() -> anyhow::Result<()> {
     let conf = config::load_config(&opts)
         .die_with(|error| format!("Failed to read config file: {}", error));
 
-    // run indefinitely if repeat is given
-    if let Some(delay) = opts.repeat {
-        loop {
-            run_dispatch(&conf).await.ok();
-            sleep(Duration::from_secs(delay)).await
-        }
-    }
-    // otherwise run just once
-    else {
-        run_dispatch(&conf).await?;
-        Ok(())
-    }
-}
-
-async fn run_dispatch(conf: &Config) -> anyhow::Result<()> {
     let ip_source: Box<dyn IPSource> = match conf.ip_source {
         IPSourceName::Ipify => Box::new(IPSourceIpify),
         IPSourceName::Icanhazip => Box::new(IPSourceIcanhazip),
     };
-    run("https://api.gandi.net", &ip_source, conf).await
+    config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
+    run("https://api.gandi.net", &ip_source, &conf, &opts).await?;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::env::temp_dir;
+    use std::{env::temp_dir, time::Duration};
 
     use crate::{config, ip_source::ip_source::IPSource, opts::Opts, run};
     use async_trait::async_trait;
     use httpmock::MockServer;
-    use tokio::fs;
+    use tokio::{fs, task::LocalSet, time::sleep};
 
     struct IPSourceMock;
 
@@ -165,7 +186,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn create_repo_success_test() {
+    async fn single_shot() {
         let mut temp = temp_dir().join("gandi-live-dns-test");
         fs::create_dir_all(&temp)
             .await
@@ -196,11 +217,121 @@ mod tests {
         };
         let conf = config::load_config(&opts).expect("Failed to load config");
         let ip_source: Box<dyn IPSource> = Box::new(IPSourceMock);
-        run(server.base_url().as_str(), &ip_source, &conf)
+        run(server.base_url().as_str(), &ip_source, &conf, &opts)
             .await
             .expect("Failed when running the update");
 
         // Assert
         mock.assert();
+    }
+
+    #[test]
+    fn repeat() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        LocalSet::new().block_on(&runtime, async {
+            let mut temp = temp_dir().join("gandi-live-dns-test");
+            fs::create_dir_all(&temp)
+                .await
+                .expect("Failed to create test dir");
+            temp.push("test.toml");
+            fs::write(
+                &temp,
+                "fqdn = \"example.com\"\napi_key = \"xxx\"\nttl = 300\n[[entry]]\nname =\"@\"\n",
+            )
+            .await
+            .expect("Failed to write test config file");
+
+            let fqdn = "example.com";
+            let rname = "@";
+            let rtype = "A";
+            let server = MockServer::start();
+            let mock = server.mock(|when, then| {
+                when.method("PUT")
+                    .path(format!(
+                        "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
+                    ))
+                    .body_contains("192.168.0.0");
+                then.status(200);
+            });
+
+            let server_url = server.base_url();
+            let handle = tokio::task::spawn_local(async move {
+                let opts = Opts {
+                    config: Some(temp.to_string_lossy().to_string()),
+                    repeat: Some(1),
+                    ..Opts::default()
+                };
+                let conf = config::load_config(&opts).expect("Failed to load config");
+                let ip_source: Box<dyn IPSource> = Box::new(IPSourceMock);
+                run(&server_url, &ip_source, &conf, &opts)
+                    .await
+                    .expect("Failed when running the update");
+            });
+
+            sleep(Duration::from_secs(3)).await;
+            handle.abort();
+
+            // Only should update once because the IP doesn't change
+            mock.assert();
+        });
+    }
+
+    #[test]
+    fn repeat_always_update() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        LocalSet::new().block_on(&runtime, async {
+            let mut temp = temp_dir().join("gandi-live-dns-test");
+            fs::create_dir_all(&temp)
+                .await
+                .expect("Failed to create test dir");
+            temp.push("test.toml");
+            fs::write(
+                &temp,
+                "fqdn = \"example.com\"\nalways_update = true\napi_key = \"xxx\"\nttl = 300\n[[entry]]\nname =\"@\"\n",
+            )
+            .await
+            .expect("Failed to write test config file");
+
+            let fqdn = "example.com";
+            let rname = "@";
+            let rtype = "A";
+            let server = MockServer::start();
+            let mock = server.mock(|when, then| {
+                when.method("PUT")
+                    .path(format!(
+                        "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
+                    ))
+                    .body_contains("192.168.0.0");
+                then.status(200);
+            });
+
+            let server_url = server.base_url();
+            let handle = tokio::task::spawn_local(async move {
+                let opts = Opts {
+                    config: Some(temp.to_string_lossy().to_string()),
+                    repeat: Some(1),
+                    ..Opts::default()
+                };
+                let conf = config::load_config(&opts).expect("Failed to load config");
+                let ip_source: Box<dyn IPSource> = Box::new(IPSourceMock);
+                run(&server_url, &ip_source, &conf, &opts)
+                    .await
+                    .expect("Failed when running the update");
+            });
+
+            sleep(Duration::from_secs(3)).await;
+            handle.abort();
+
+            // Should update multiple times since always_update
+            assert!(mock.hits() > 1);
+        });
     }
 }
