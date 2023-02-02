@@ -161,7 +161,8 @@ Docker with `docker login`. Then follow these steps:
 - Create a release on Github
   - Make sure to create a tag for the release version on `master`
   - Upload the binary archives to the Github release
-- Update the AUR version manually
+- Update the AUR version
+- Run `cargo publish` to update the crates.io version
 
 ## Alternatives
 
