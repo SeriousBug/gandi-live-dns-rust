@@ -3,9 +3,7 @@
 # Make sure `cross` is installed.
 # You'll also need `sed`, a relatively recent version of `tar`, and `7z`.
 #
-# This script runs does `sudo docker` to build and push the release to docker.
-# If you have rootless docker set up, remove sudo from this variable.
-DOCKER="sudo docker"
+DOCKER="docker"
 #
 shopt -s extglob
 # Trap errors and interrupts
@@ -49,6 +47,9 @@ VERSION=$(sed -nr 's/^version *= *"([0-9.]+)"/\1/p' Cargo.toml | head --lines=1)
 # Make the builds
 for target in "${!TARGETS[@]}"; do
   echo Building "${target}"
+  # Keeping the cached builds seem to be breaking things when going between targets
+  # This wouldn't be a problem if these were running in a matrix on the CI...
+  rm -rf target/release/
   cross build -j $(($(nproc) / 2)) --release --target "${target}"
   if [[ "${target}" =~ .*"windows".* ]]; then
     zip -j "gandi-live-dns.${VERSION}.${TARGETS[${target}]}.zip" target/"${target}"/release/gandi-live-dns.exe 1>/dev/null
