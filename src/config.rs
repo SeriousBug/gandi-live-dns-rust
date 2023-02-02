@@ -25,6 +25,7 @@ fn default_ttl() -> u32 {
 pub enum IPSourceName {
     Ipify,
     Icanhazip,
+    SeeIP,
 }
 
 impl Default for IPSourceName {

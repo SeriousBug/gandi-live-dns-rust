@@ -19,8 +19,9 @@ ttl = 300
 # Ipify is used by default. If you want to change it, uncomment the one you want
 # to use.
 #
-# ip_source = "Ipify"
-# ip_source = "Icanhazip"
+#ip_source = "Ipify"     # An open source and public service. https://github.com/rdegges/ipify-api
+#ip_source = "Icanhazip" # A free service, currently run by Cloudflare. https://major.io/2021/06/06/a-new-future-for-icanhazip/
+#ip_source = "SeeIP"     # A free service, run by UNVIO, LLC. https://seeip.org/
 
 # For every domain or subdomain you want to update, create an entry below.
 

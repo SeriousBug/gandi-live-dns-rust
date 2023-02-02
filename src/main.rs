@@ -4,6 +4,7 @@ use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
 use clap::Parser;
 use config::IPSourceName;
 use ip_source::icanhazip::IPSourceIcanhazip;
+use ip_source::seeip::IPSourceSeeIP;
 use opts::Opts;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
 use serde::Serialize;
@@ -158,6 +159,7 @@ async fn main() -> anyhow::Result<()> {
     let ip_source: Box<dyn IPSource> = match conf.ip_source {
         IPSourceName::Ipify => Box::new(IPSourceIpify),
         IPSourceName::Icanhazip => Box::new(IPSourceIcanhazip),
+        IPSourceName::SeeIP => Box::new(IPSourceSeeIP),
     };
     config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
     run("https://api.gandi.net", &ip_source, &conf, &opts).await?;
