@@ -15,7 +15,7 @@ pub enum ConfigError {
     Io(#[from] io::Error),
     #[error("Failed to parse config file: {0}")]
     Parse(#[from] toml::de::Error),
-    #[error("Entry {0} has invalid type {1}")]
+    #[error("Entry '{0}' has invalid type '{1}'")]
     Validation(String, String),
     #[error("Can't find config directory")]
     ConfigNotFound(),
