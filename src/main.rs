@@ -264,7 +264,7 @@ async fn run(
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<(), ClientError> {
+async fn main() -> anyhow::Result<()> {
     let opts = opts::Opts::parse();
     let conf = config::load_config(&opts)?;
 
