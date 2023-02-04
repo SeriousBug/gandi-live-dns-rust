@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 
+use crate::ClientError;
+
 use super::ip_source::IPSource;
 
 pub(crate) struct IPSourceIcanhazip;
 
-async fn get_ip(api_url: &str) -> anyhow::Result<String> {
+async fn get_ip(api_url: &str) -> Result<String, ClientError> {
     let response = reqwest::get(api_url).await?;
     let text = response.text().await?;
     Ok(text)
@@ -12,14 +14,14 @@ async fn get_ip(api_url: &str) -> anyhow::Result<String> {
 
 #[async_trait]
 impl IPSource for IPSourceIcanhazip {
-    async fn get_ipv4(&self) -> anyhow::Result<String> {
+    async fn get_ipv4(&self) -> Result<String, ClientError> {
         Ok(get_ip("https://ipv4.icanhazip.com")
             .await?
             // icanazip puts a newline at the end
             .trim()
             .to_string())
     }
-    async fn get_ipv6(&self) -> anyhow::Result<String> {
+    async fn get_ipv6(&self) -> Result<String, ClientError> {
         Ok(get_ip("https://ipv6.icanhazip.com")
             .await?
             // icanazip puts a newline at the end
