@@ -33,6 +33,7 @@ anyhow = "1.0"
 governor = "0.5"
 async-trait = "0.1"
 die-exit = "0.4"
+thiserror = "1.0.38"
 
 [dev-dependencies]
 httpmock = "0.6"
