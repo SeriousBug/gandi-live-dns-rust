@@ -8,7 +8,7 @@ use ip_source::seeip::IPSourceSeeIP;
 use opts::Opts;
 use reqwest::header::InvalidHeaderValue;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::join;
 use tokio::{self, task::JoinHandle, time::sleep};
@@ -74,6 +74,21 @@ pub struct APIPayload {
     pub rrset_ttl: u32,
 }
 
+#[derive(Debug)]
+struct ResponseFeedback {
+    entry_name: String,
+    entry_type: String,
+    response: Result<String, ApiError>,
+}
+
+#[derive(Deserialize)]
+struct ApiResponse {
+    message: String,
+    cause: Option<String>,
+    code: Option<i32>,
+    object: Option<String>,
+}
+
 async fn run(
     base_url: &str,
     ip_source: &Box<dyn IPSource>,
@@ -112,7 +127,7 @@ async fn run(
 
         if !ipv4_same || !ipv6_same || conf.always_update {
             let client = api_client(&conf.api_key)?;
-            let mut tasks: Vec<JoinHandle<(StatusCode, String)>> = Vec::new();
+            let mut tasks: Vec<JoinHandle<Result<ResponseFeedback, ClientError>>> = Vec::new();
             println!("Attempting to update DNS entries now");
 
             let governor = Arc::new(governor::RateLimiter::direct(governor::Quota::per_minute(
@@ -155,28 +170,82 @@ async fn run(
                     let req = client.put(url).json(&payload);
                     let task_governor = governor.clone();
                     let entry_type = entry_type.to_string();
-                    let task = tokio::task::spawn(async move {
-                        task_governor.until_ready_with_jitter(retry_jitter).await;
-                        println!("Updating {} record for {}", entry_type, &fqdn);
-                        match req.send().await {
-                            Ok(response) => (
-                                response.status(),
-                                response
-                                    .text()
-                                    .await
-                                    .unwrap_or_else(|error| error.to_string()),
-                            ),
-                            Err(error) => (StatusCode::IM_A_TEAPOT, error.to_string()),
-                        }
-                    });
+                    let entry_name = entry.name.to_string();
+
+                    let task: JoinHandle<Result<ResponseFeedback, ClientError>> =
+                        tokio::task::spawn(async move {
+                            task_governor.until_ready_with_jitter(retry_jitter).await;
+                            println!("Updating {} record for {}", entry_type, &fqdn);
+
+                            let resp = req.send().await?;
+
+                            let response_feedback = match resp.status() {
+                                StatusCode::CREATED => {
+                                    let body: ApiResponse = resp.json().await?;
+                                    ResponseFeedback {
+                                        entry_name,
+                                        entry_type,
+                                        response: Ok(body.message),
+                                    }
+                                }
+                                StatusCode::UNAUTHORIZED => ResponseFeedback {
+                                    entry_name,
+                                    entry_type,
+                                    response: Err(ApiError::Unauthorized()),
+                                },
+                                StatusCode::FORBIDDEN => {
+                                    let body: ApiResponse = resp.json().await?;
+                                    ResponseFeedback {
+                                        entry_name: entry_name.clone(),
+                                        entry_type,
+                                        response: Err(ApiError::Forbidden {
+                                            message: body.message,
+                                        }),
+                                    }
+                                }
+                                _ => {
+                                    let status = resp.status();
+                                    let body: ApiResponse = resp.json().await?;
+                                    ResponseFeedback {
+                                        entry_name,
+                                        entry_type,
+                                        response: Err(ApiError::Unknown(status, body.message)),
+                                    }
+                                }
+                            };
+                            Ok(response_feedback)
+                        });
                     tasks.push(task);
                 }
             }
 
             let results = futures::future::try_join_all(tasks).await?;
-            println!("Updates done for {} entries", results.len());
-            for (status, body) in results {
-                println!("{} - {}", status, body);
+            // Only count successfull requests
+            println!(
+                "Updates done for {} entries",
+                results
+                    .iter()
+                    .filter_map(|item| item.as_ref().ok())
+                    .filter(|item| item.response.is_ok())
+                    .count()
+            );
+            for item in results {
+                match item {
+                    Ok(value) => println!(
+                        "{}",
+                        match value.response {
+                            Ok(val) => format!(
+                                "Record '{}' ({}): {}",
+                                value.entry_name, value.entry_type, val
+                            ),
+                            Err(err) => format!(
+                                "Record '{}' ({}): {}",
+                                value.entry_name, value.entry_type, err
+                            ),
+                        }
+                    ),
+                    Err(err) => println!("{}", err),
+                }
             }
         } else {
             println!("IP address has not changed since last update");
