@@ -666,6 +666,7 @@ dependencies = [
  "regex",
  "reqwest",
  "serde",
+ "thiserror",
  "tokio",
  "toml",
 ]

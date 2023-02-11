@@ -2,12 +2,13 @@ use crate::config::Config;
 use crate::gandi::GandiAPI;
 use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
 use clap::Parser;
-use config::IPSourceName;
+use config::{ConfigError, IPSourceName};
 use ip_source::icanhazip::IPSourceIcanhazip;
 use ip_source::seeip::IPSourceSeeIP;
 use opts::Opts;
+use reqwest::header::InvalidHeaderValue;
 use reqwest::{header, Client, ClientBuilder, StatusCode};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::join;
 use tokio::{self, task::JoinHandle, time::sleep};
@@ -16,13 +17,44 @@ mod gandi;
 mod ip_source;
 mod opts;
 use die_exit::*;
+use thiserror::Error;
 
 /// 30 requests per minute, see https://api.gandi.net/docs/reference/
 const GANDI_RATE_LIMIT: u32 = 30;
 /// If we hit the rate limit, wait up to this many seconds before next attempt
 const GANDI_DELAY_JITTER: u64 = 20;
 
-fn api_client(api_key: &str) -> anyhow::Result<Client> {
+#[derive(Error, Debug)]
+pub enum ClientError {
+    #[error("Error occured while reading config: {0}")]
+    Config(#[from] ConfigError),
+    #[error("Error while accessing the Gandi API: {0}")]
+    Api(#[from] ApiError),
+    #[error("Error while converting the API key to a header: {0}")]
+    InvalidHeader(#[from] InvalidHeaderValue),
+    #[error("Error while sending request: {0}")]
+    Request(#[from] reqwest::Error),
+    #[error("Error while joining async tasks: {0}")]
+    TaskJoin(#[from] tokio::task::JoinError),
+    #[error("Unexpected type in config: {0}")]
+    BadEntry(String),
+    #[error("Entry '{0}' includes type A which requires an IPv4 adress but no IPv4 adress could be determined because: {1}")]
+    Ipv4missing(String, String),
+    #[error("Entry '{0}' includes type AAAA which requires an IPv6 adress but no IPv6 adress could be determined because: {1}")]
+    Ipv6missing(String, String),
+}
+
+#[derive(Error, Debug)]
+pub enum ApiError {
+    #[error("API returned 403 - Forbidden. Message: {message:?}")]
+    Forbidden { message: String },
+    #[error("API returned 403 - Unauthorized. Provided API key is possibly incorrect")]
+    Unauthorized(),
+    #[error("API returned {0} - {0}")]
+    Unknown(StatusCode, String),
+}
+
+fn api_client(api_key: &str) -> Result<Client, ClientError> {
     let client_builder = ClientBuilder::new();
 
     let key = format!("Apikey {}", api_key);
@@ -42,12 +74,27 @@ pub struct APIPayload {
     pub rrset_ttl: u32,
 }
 
+#[derive(Debug)]
+struct ResponseFeedback {
+    entry_name: String,
+    entry_type: String,
+    response: Result<String, ApiError>,
+}
+
+#[derive(Deserialize)]
+struct ApiResponse {
+    message: String,
+    cause: Option<String>,
+    code: Option<i32>,
+    object: Option<String>,
+}
+
 async fn run(
     base_url: &str,
     ip_source: &Box<dyn IPSource>,
     conf: &Config,
     opts: &Opts,
-) -> anyhow::Result<()> {
+) -> Result<(), ClientError> {
     let mut last_ipv4: Option<String> = None;
     let mut last_ipv6: Option<String> = None;
 
@@ -80,7 +127,7 @@ async fn run(
 
         if !ipv4_same || !ipv6_same || conf.always_update {
             let client = api_client(&conf.api_key)?;
-            let mut tasks: Vec<JoinHandle<(StatusCode, String)>> = Vec::new();
+            let mut tasks: Vec<JoinHandle<Result<ResponseFeedback, ClientError>>> = Vec::new();
             println!("Attempting to update DNS entries now");
 
             let governor = Arc::new(governor::RateLimiter::direct(governor::Quota::per_minute(
@@ -100,10 +147,22 @@ async fn run(
                     }
                     .url();
                     let ip = match entry_type {
-                        "A" => ipv4.die_with(|error| format!("Needed IPv4 for {fqdn}: {error}")),
-                        "AAAA" => ipv6.die_with(|error| format!("Needed IPv6 for {fqdn}: {error}")),
-                        bad_entry_type => die!("Unexpected type in config: {}", bad_entry_type),
-                    };
+                        "A" => match ipv4 {
+                            Ok(ref value) => Ok(value),
+                            Err(ref err) => Err(ClientError::Ipv4missing(
+                                entry.name.clone(),
+                                err.to_string(),
+                            )),
+                        },
+                        "AAAA" => match ipv6 {
+                            Ok(ref value) => Ok(value),
+                            Err(ref err) => Err(ClientError::Ipv6missing(
+                                entry.name.clone(),
+                                err.to_string(),
+                            )),
+                        },
+                        &_ => Err(ClientError::BadEntry(entry_type.to_string())),
+                    }?;
                     let payload = APIPayload {
                         rrset_values: vec![ip.to_string()],
                         rrset_ttl: Config::ttl(entry, conf),
@@ -111,28 +170,82 @@ async fn run(
                     let req = client.put(url).json(&payload);
                     let task_governor = governor.clone();
                     let entry_type = entry_type.to_string();
-                    let task = tokio::task::spawn(async move {
-                        task_governor.until_ready_with_jitter(retry_jitter).await;
-                        println!("Updating {} record for {}", entry_type, &fqdn);
-                        match req.send().await {
-                            Ok(response) => (
-                                response.status(),
-                                response
-                                    .text()
-                                    .await
-                                    .unwrap_or_else(|error| error.to_string()),
-                            ),
-                            Err(error) => (StatusCode::IM_A_TEAPOT, error.to_string()),
-                        }
-                    });
+                    let entry_name = entry.name.to_string();
+
+                    let task: JoinHandle<Result<ResponseFeedback, ClientError>> =
+                        tokio::task::spawn(async move {
+                            task_governor.until_ready_with_jitter(retry_jitter).await;
+                            println!("Updating {} record for {}", entry_type, &fqdn);
+
+                            let resp = req.send().await?;
+
+                            let response_feedback = match resp.status() {
+                                StatusCode::CREATED => {
+                                    let body: ApiResponse = resp.json().await?;
+                                    ResponseFeedback {
+                                        entry_name,
+                                        entry_type,
+                                        response: Ok(body.message),
+                                    }
+                                }
+                                StatusCode::UNAUTHORIZED => ResponseFeedback {
+                                    entry_name,
+                                    entry_type,
+                                    response: Err(ApiError::Unauthorized()),
+                                },
+                                StatusCode::FORBIDDEN => {
+                                    let body: ApiResponse = resp.json().await?;
+                                    ResponseFeedback {
+                                        entry_name: entry_name.clone(),
+                                        entry_type,
+                                        response: Err(ApiError::Forbidden {
+                                            message: body.message,
+                                        }),
+                                    }
+                                }
+                                _ => {
+                                    let status = resp.status();
+                                    let body: ApiResponse = resp.json().await?;
+                                    ResponseFeedback {
+                                        entry_name,
+                                        entry_type,
+                                        response: Err(ApiError::Unknown(status, body.message)),
+                                    }
+                                }
+                            };
+                            Ok(response_feedback)
+                        });
                     tasks.push(task);
                 }
             }
 
             let results = futures::future::try_join_all(tasks).await?;
-            println!("Updates done for {} entries", results.len());
-            for (status, body) in results {
-                println!("{} - {}", status, body);
+            // Only count successfull requests
+            println!(
+                "Updates done for {} entries",
+                results
+                    .iter()
+                    .filter_map(|item| item.as_ref().ok())
+                    .filter(|item| item.response.is_ok())
+                    .count()
+            );
+            for item in results {
+                match item {
+                    Ok(value) => println!(
+                        "{}",
+                        match value.response {
+                            Ok(val) => format!(
+                                "Record '{}' ({}): {}",
+                                value.entry_name, value.entry_type, val
+                            ),
+                            Err(err) => format!(
+                                "Record '{}' ({}): {}",
+                                value.entry_name, value.entry_type, err
+                            ),
+                        }
+                    ),
+                    Err(err) => println!("{}", err),
+                }
             }
         } else {
             println!("IP address has not changed since last update");
@@ -153,15 +266,14 @@ async fn run(
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let opts = opts::Opts::parse();
-    let conf = config::load_config(&opts)
-        .die_with(|error| format!("Failed to read config file: {}", error));
+    let conf = config::load_config(&opts)?;
 
     let ip_source: Box<dyn IPSource> = match conf.ip_source {
         IPSourceName::Ipify => Box::new(IPSourceIpify),
         IPSourceName::Icanhazip => Box::new(IPSourceIcanhazip),
         IPSourceName::SeeIP => Box::new(IPSourceSeeIP),
     };
-    config::validate_config(&conf).die_with(|error| format!("Invalid config: {}", error));
+    config::validate_config(&conf)?;
     run("https://api.gandi.net", &ip_source, &conf, &opts).await?;
     Ok(())
 }
@@ -170,7 +282,7 @@ async fn main() -> anyhow::Result<()> {
 mod tests {
     use std::{env::temp_dir, time::Duration};
 
-    use crate::{config, ip_source::ip_source::IPSource, opts::Opts, run};
+    use crate::{config, ip_source::ip_source::IPSource, opts::Opts, run, ClientError};
     use async_trait::async_trait;
     use httpmock::MockServer;
     use tokio::{fs, task::LocalSet, time::sleep};
@@ -179,10 +291,10 @@ mod tests {
 
     #[async_trait]
     impl IPSource for IPSourceMock {
-        async fn get_ipv4(&self) -> anyhow::Result<String> {
+        async fn get_ipv4(&self) -> Result<String, ClientError> {
             Ok("192.168.0.0".to_string())
         }
-        async fn get_ipv6(&self) -> anyhow::Result<String> {
+        async fn get_ipv6(&self) -> Result<String, ClientError> {
             Ok("fe80:0000:0208:74ff:feda:625c".to_string())
         }
     }

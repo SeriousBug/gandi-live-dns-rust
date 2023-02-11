@@ -1,11 +1,24 @@
 use crate::opts;
 use directories::ProjectDirs;
 use serde::Deserialize;
-use std::fs;
 use std::path::PathBuf;
+use std::{fs, io};
+use thiserror::Error;
 
 fn default_types() -> Vec<String> {
     DEFAULT_TYPES.iter().map(|v| v.to_string()).collect()
+}
+
+#[derive(Error, Debug)]
+pub enum ConfigError {
+    #[error("Failed to read config file: {0} ")]
+    Io(#[from] io::Error),
+    #[error("Failed to parse config file: {0}")]
+    Parse(#[from] toml::de::Error),
+    #[error("Entry '{0}' has invalid type '{1}'")]
+    Validation(String, String),
+    #[error("Can't find config directory")]
+    ConfigNotFound(),
 }
 
 #[derive(Deserialize, Debug)]
@@ -65,18 +78,20 @@ impl Config {
     }
 }
 
-fn load_config_from<P: std::convert::AsRef<std::path::Path>>(path: P) -> anyhow::Result<Config> {
+fn load_config_from<P: std::convert::AsRef<std::path::Path>>(
+    path: P,
+) -> Result<Config, ConfigError> {
     let contents = fs::read_to_string(path)?;
     Ok(toml::from_str(&contents)?)
 }
 
-pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
+pub fn load_config(opts: &opts::Opts) -> Result<Config, ConfigError> {
     let mut config = match &opts.config {
         Some(config_path) => load_config_from(config_path),
         None => {
             let confpath = ProjectDirs::from("me", "kaangenc", "gandi-dynamic-dns")
                 .map(|dir| PathBuf::from(dir.config_dir()).join("config.toml"))
-                .ok_or_else(|| anyhow::anyhow!("Can't find config directory"));
+                .ok_or(ConfigError::ConfigNotFound());
             confpath
                 .and_then(|path| {
                     println!("Checking for config: {}", path.to_string_lossy());
@@ -105,11 +120,14 @@ pub fn load_config(opts: &opts::Opts) -> anyhow::Result<Config> {
     Ok(config)
 }
 
-pub fn validate_config(config: &Config) -> anyhow::Result<()> {
+pub fn validate_config(config: &Config) -> Result<(), ConfigError> {
     for entry in &config.entry {
         for entry_type in Config::types(entry) {
             if entry_type != "A" && entry_type != "AAAA" {
-                anyhow::bail!("Entry {} has invalid type {}", entry.name, entry_type);
+                return Err(ConfigError::Validation(
+                    entry.name.clone(),
+                    entry_type.to_string(),
+                ));
             }
         }
     }

@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 
+use crate::ClientError;
+
 use super::ip_source::IPSource;
 
 pub(crate) struct IPSourceIpify;
 
-async fn get_ip(api_url: &str) -> anyhow::Result<String> {
+async fn get_ip(api_url: &str) -> Result<String, ClientError> {
     let response = reqwest::get(api_url).await?;
     let text = response.text().await?;
     Ok(text)
@@ -12,10 +14,10 @@ async fn get_ip(api_url: &str) -> anyhow::Result<String> {
 
 #[async_trait]
 impl IPSource for IPSourceIpify {
-    async fn get_ipv4(&self) -> anyhow::Result<String> {
+    async fn get_ipv4(&self) -> Result<String, ClientError> {
         get_ip("https://api.ipify.org").await
     }
-    async fn get_ipv6(&self) -> anyhow::Result<String> {
+    async fn get_ipv6(&self) -> Result<String, ClientError> {
         get_ip("https://api6.ipify.org").await
     }
 }
