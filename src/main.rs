@@ -82,6 +82,9 @@ struct ResponseFeedback {
 }
 
 #[derive(Deserialize)]
+// Allowing dead code because this is the API response we get from Gandi.
+// We don't necessarily need all the fields, but we get them anyway.
+#[allow(dead_code)]
 struct ApiResponse {
     message: String,
     cause: Option<String>,
@@ -121,9 +124,6 @@ async fn run(
             .as_ref()
             .map(|p| ipv6.map(|q| p == q).unwrap_or(false))
             .unwrap_or(false);
-
-        last_ipv4 = ipv4.ok().map(|v| v.to_string());
-        last_ipv6 = ipv6.ok().map(|v| v.to_string());
 
         if !ipv4_same || !ipv6_same || conf.always_update {
             let client = api_client(&conf.api_key)?;
@@ -229,11 +229,11 @@ async fn run(
                     .filter(|item| item.response.is_ok())
                     .count()
             );
-            for item in results {
+            for item in &results {
                 match item {
                     Ok(value) => println!(
                         "{}",
-                        match value.response {
+                        match &value.response {
                             Ok(val) => format!(
                                 "Record '{}' ({}): {}",
                                 value.entry_name, value.entry_type, val
@@ -246,6 +246,18 @@ async fn run(
                     ),
                     Err(err) => println!("{}", err),
                 }
+            }
+            if results
+                .iter()
+                // all tasks finished OK, and all responses were OK as well
+                .all(|result| result.as_ref().map(|v| v.response.is_ok()).unwrap_or(false))
+            {
+                // Only then we update the last seen IP, because we want to
+                // retry updates in case the last update just happened to fail
+                last_ipv4 = ipv4.ok().map(|v| v.to_string());
+                last_ipv6 = ipv6.ok().map(|v| v.to_string());
+            } else if opts.repeat.is_some() {
+                println!("Some operations failed. They will be retried during the next repeat.")
             }
         } else {
             println!("IP address has not changed since last update");
@@ -280,11 +292,15 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{env::temp_dir, time::Duration};
-
     use crate::{config, ip_source::ip_source::IPSource, opts::Opts, run, ClientError};
     use async_trait::async_trait;
     use httpmock::MockServer;
+    use lazy_static::lazy_static;
+    use std::{
+        env::temp_dir,
+        sync::atomic::{AtomicBool, Ordering::SeqCst},
+        time::Duration,
+    };
     use tokio::{fs, task::LocalSet, time::sleep};
 
     struct IPSourceMock;
@@ -322,7 +338,8 @@ mod tests {
                     "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
                 ))
                 .body_contains("192.168.0.0");
-            then.status(200);
+            then.status(201)
+                .body("{\"cause\":\"\", \"code\":201, \"message\":\"\", \"object\":\"\"}");
         });
 
         let opts = Opts {
@@ -369,7 +386,8 @@ mod tests {
                         "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
                     ))
                     .body_contains("192.168.0.0");
-                then.status(200);
+                then.status(201)
+                    .body("{\"cause\":\"\", \"code\":201, \"message\":\"\", \"object\":\"\"}");
             });
 
             let server_url = server.base_url();
@@ -390,6 +408,86 @@ mod tests {
             handle.abort();
 
             // Only should update once because the IP doesn't change
+            mock.assert();
+        });
+    }
+
+    #[test]
+    fn repeat_with_failure() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        LocalSet::new().block_on(&runtime, async {
+            let mut temp = temp_dir().join("gandi-live-dns-test");
+            fs::create_dir_all(&temp)
+                .await
+                .expect("Failed to create test dir");
+            temp.push("test.toml");
+            fs::write(
+                &temp,
+                "fqdn = \"example.com\"\napi_key = \"xxx\"\nttl = 300\n[[entry]]\nname =\"@\"\n",
+            )
+            .await
+            .expect("Failed to write test config file");
+
+            let fqdn = "example.com";
+            let rname = "@";
+            let rtype = "A";
+            let server = MockServer::start();
+            let mock = server.mock(|when, then| {
+                when.method("PUT")
+                    .path(format!(
+                        "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
+                    ))
+                    .body_contains("192.168.0.0")
+                    .matches(|_| {
+                        // Don't match during the first call, but do during the second call
+                        lazy_static! {
+                            static ref FIRST_CALL: AtomicBool = AtomicBool::new(true);
+                        }
+                        if FIRST_CALL.load(SeqCst) {
+                            FIRST_CALL.store(false, SeqCst);
+                            return true;
+                        }
+                        false
+                    });
+                then.status(500)
+                    .body("{\"cause\":\"\", \"code\":500, \"message\":\"Something went wrong\", \"object\":\"\"}");
+                
+            });
+            let mock_fail = server.mock(|when, then| {
+                when.method("PUT")
+                    .path(format!(
+                        "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
+                    ))
+                    .body_contains("192.168.0.0");
+                then.status(201)
+                    .body("{\"cause\":\"\", \"code\":201, \"message\":\"\", \"object\":\"\"}");
+            });
+
+            let server_url = server.base_url();
+            let handle = tokio::task::spawn_local(async move {
+                let opts = Opts {
+                    config: Some(temp.to_string_lossy().to_string()),
+                    repeat: Some(1),
+                    ..Opts::default()
+                };
+                let conf = config::load_config(&opts).expect("Failed to load config");
+                let ip_source: Box<dyn IPSource> = Box::new(IPSourceMock);
+                run(&server_url, &ip_source, &conf, &opts)
+                    .await
+                    .expect("Failed when running the update");
+            });
+
+            sleep(Duration::from_secs(4)).await;
+            handle.abort();
+
+            // The first call failed
+            mock_fail.assert();
+            // We then retried since the first call failed. The retry succeeds
+            // so we don't retry again.
             mock.assert();
         });
     }
@@ -424,7 +522,7 @@ mod tests {
                         "/v5/livedns/domains/{fqdn}/records/{rname}/{rtype}"
                     ))
                     .body_contains("192.168.0.0");
-                then.status(200);
+                then.status(201).body("{\"cause\":\"\", \"code\":201, \"message\":\"\", \"object\":\"\"}");
             });
 
             let server_url = server.base_url();
