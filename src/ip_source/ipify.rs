@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::ClientError;
 
-use super::ip_source::IPSource;
+use super::common::IPSource;
 
 pub(crate) struct IPSourceIpify;
 
