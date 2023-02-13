@@ -1,0 +1,4 @@
+ignore:
+  # These are tested, but the tests hit external services which is not
+  # necessarily smart to do in CI, so they get skipped.
+  - "src/ip_source"
