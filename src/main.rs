@@ -455,7 +455,6 @@ mod tests {
                     });
                 then.status(500)
                     .body("{\"cause\":\"\", \"code\":500, \"message\":\"Something went wrong\", \"object\":\"\"}");
-                
             });
             let mock_fail = server.mock(|when, then| {
                 when.method("PUT")
