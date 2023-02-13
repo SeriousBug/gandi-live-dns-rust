@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::ClientError;
 
-use super::ip_source::IPSource;
+use super::common::IPSource;
 
 pub(crate) struct IPSourceIcanhazip;
 
@@ -34,7 +34,7 @@ impl IPSource for IPSourceIcanhazip {
 mod tests {
     use regex::Regex;
 
-    use crate::ip_source::ip_source::IPSource;
+    use crate::ip_source::common::IPSource;
 
     use super::IPSourceIcanhazip;
 

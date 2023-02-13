@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::gandi::GandiAPI;
-use crate::ip_source::{ip_source::IPSource, ipify::IPSourceIpify};
+use crate::ip_source::{common::IPSource, ipify::IPSourceIpify};
 use clap::Parser;
 use config::{ConfigError, IPSourceName};
 use ip_source::icanhazip::IPSourceIcanhazip;
@@ -57,7 +57,7 @@ pub enum ApiError {
 fn api_client(api_key: &str) -> Result<Client, ClientError> {
     let client_builder = ClientBuilder::new();
 
-    let key = format!("Apikey {}", api_key);
+    let key = format!("Apikey {api_key}");
     let mut auth_value = header::HeaderValue::from_str(&key)?;
     let mut headers = header::HeaderMap::new();
     auth_value.set_sensitive(true);
@@ -108,12 +108,12 @@ async fn run(
         let ipv6 = ipv6_result.as_ref();
         println!("Found these:");
         match ipv4 {
-            Ok(ip) => println!("\tIPv4: {}", ip),
-            Err(err) => eprintln!("\tIPv4 failed: {}", err),
+            Ok(ip) => println!("\tIPv4: {ip}"),
+            Err(err) => eprintln!("\tIPv4 failed: {err}"),
         }
         match ipv6 {
-            Ok(ip) => println!("\tIPv6: {}", ip),
-            Err(err) => eprintln!("\tIPv6 failed: {}", err),
+            Ok(ip) => println!("\tIPv6: {ip}"),
+            Err(err) => eprintln!("\tIPv6 failed: {err}"),
         }
 
         let ipv4_same = last_ipv4
@@ -244,7 +244,7 @@ async fn run(
                             ),
                         }
                     ),
-                    Err(err) => println!("{}", err),
+                    Err(err) => println!("{err}"),
                 }
             }
             if results
@@ -292,7 +292,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{config, ip_source::ip_source::IPSource, opts::Opts, run, ClientError};
+    use crate::{config, ip_source::common::IPSource, opts::Opts, run, ClientError};
     use async_trait::async_trait;
     use httpmock::MockServer;
     use lazy_static::lazy_static;
