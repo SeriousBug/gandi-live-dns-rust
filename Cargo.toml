@@ -21,7 +21,7 @@ toml = "0.7"
 json = "0.12"
 serde = { version = "1.0", features = ["derive"] }
 directories = "4.0"
-clap = { version = "4.0", features = [
+clap = { version = "4.1", features = [
   "derive",
   "cargo",
   "unicode",
