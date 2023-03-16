@@ -77,4 +77,6 @@ ${DOCKER} buildx build . \
   --file "Dockerfile" \
   --tag "seriousbug/gandi-live-dns-rust:latest" \
   --tag "seriousbug/gandi-live-dns-rust:${VERSION}" \
+  --tag "ghcr.io/seriousbug/gandi-live-dns-rust:latest" \
+  --tag "ghcr.io/seriousbug/gandi-live-dns-rust:${VERSION}" \
   --push

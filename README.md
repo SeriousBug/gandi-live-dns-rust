@@ -69,8 +69,14 @@ Download the latest version from the releases page, extract it from the archive,
 
 ### With docker
 
-Use the [seriousbug/gandi-live-dns-rust](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust) Docker images, which are available for x86_64,
-arm64, armv6, and armv7 platforms. Follow the steps below to use these images.
+Container images are available on both Github Packages and Docker Hub.
+- [ghcr.io/seriousbug/gandi-live-dns-rust](https://github.com/users/seriousbug/packages/container/package/gandi-live-dns-rust)
+- [docker.io/seriousbug/gandi-live-dns-rust](https://hub.docker.com/r/seriousbug/gandi-live-dns-rust)
+
+The container images are built multi-arch, with support for x86_64, arm64,
+armv7, and armv6 platforms. Follow the steps below to use them. You can use
+`seriousbug/gandi-live-dns-rust` directly which will default to Docker Hub,
+otherwise add `ghcr.io` in the examples below to use Github Packages.
 
 - Create a file `gandi.toml`, then copy and paste the contents of [`example.toml`](https://raw.githubusercontent.com/SeriousBug/gandi-live-dns-rust/master/example.toml)
 - Follow the instructions in the example config to get your API key and put it in the config
